@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ConvexAuthNextjsServerProvider } from "@convex-dev/auth/nextjs/server";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { ReactQueryProvider } from "./providers/ReactQueryProvider";
 import { ConvexClientProvider } from "./ConvexClientProvider";
@@ -27,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <>
+    <ConvexAuthNextjsServerProvider>
       <html lang="en" suppressHydrationWarning>
         <head>
           <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
@@ -49,6 +50,6 @@ export default function RootLayout({
           </ConvexClientProvider>
         </body>
       </html>
-    </>
+    </ConvexAuthNextjsServerProvider>
   );
 }

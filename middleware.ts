@@ -1,8 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import {
+  convexAuthNextjsMiddleware,
+  nextjsMiddlewareRedirect,
+} from "@convex-dev/auth/nextjs/server";
 
-const PUBLIC_ROUTES = ["login", "invite", "accept-invite", "reset-password", "forgot-password", "not-found"];
+const PUBLIC_ROUTES = [
+  "login",
+  "invite",
+  "accept-invite",
+  "reset-password",
+  "forgot-password",
+  "not-found",
+];
 
-export function middleware(req: NextRequest) {
+// Single-tenant sandbox: the seeded company slug. Used to route the bare root.
+const DEFAULT_TENANT = "oppr";
+
+export default convexAuthNextjsMiddleware(async (req, { convexAuth }) => {
   const { pathname } = req.nextUrl;
 
   if (
@@ -12,47 +25,33 @@ export function middleware(req: NextRequest) {
     pathname.startsWith("/ingest") ||
     pathname.startsWith("/registration")
   ) {
-    return NextResponse.next();
+    return;
   }
 
+  const isAuthenticated = await convexAuth.isAuthenticated();
   const segments = pathname.split("/").filter(Boolean);
   const tenant = segments[0];
 
   if (!tenant) {
-    const hasAccessToken = req.cookies.has("access_token");
-    const lastTenant = req.cookies.get("last_tenant")?.value;
-
-    if (hasAccessToken && lastTenant) {
-      return NextResponse.redirect(new URL(`/${lastTenant}/dashboard`, req.url));
-    }
-
-    return NextResponse.next();
+    return nextjsMiddlewareRedirect(
+      req,
+      `/${DEFAULT_TENANT}/${isAuthenticated ? "dashboard" : "login"}`,
+    );
   }
 
   const isPublic = PUBLIC_ROUTES.some((r) => segments[1]?.startsWith(r));
-  const hasAccessToken = req.cookies.has("access_token");
 
-  if (!hasAccessToken && !isPublic) {
-    return NextResponse.redirect(new URL(`/${tenant}/login`, req.url));
+  if (!isAuthenticated && !isPublic) {
+    return nextjsMiddlewareRedirect(req, `/${tenant}/login`);
   }
 
-  if (hasAccessToken && pathname.includes('login')) {
-    return NextResponse.redirect(new URL(`/${tenant}/dashboard`, req.url));
+  if (isAuthenticated && pathname.includes("login")) {
+    return nextjsMiddlewareRedirect(req, `/${tenant}/dashboard`);
   }
 
-  const response = NextResponse.next();
-
-  if (hasAccessToken) {
-    response.cookies.set("last_tenant", tenant, {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 365,
-      sameSite: "lax",
-    });
-  }
-
-  return response;
-}
+  return;
+});
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
 };
