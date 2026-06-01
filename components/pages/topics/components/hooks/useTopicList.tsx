@@ -1,10 +1,11 @@
 import { toast } from "@/components/ui/sonner";
-import { createHttpClient, InternalServerError, ValidationError } from "@/utils/api/createHttpClient";
-import { keepPreviousData, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { Row } from "@tanstack/react-table";
-import { redirect, useRouter, useSearchParams } from "next/navigation";
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useReducer } from "react";
-import { GetTopicResponse, Topic } from "../../data/schema";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createContext, ReactNode, useContext, useReducer, useState } from "react";
+import { Topic } from "../../data/schema";
 import { useUserDetails } from "@/providers/UserContextProvider";
 
 type State = {
@@ -90,191 +91,130 @@ type TopicListContextType = {
 const TopicListContext = createContext<TopicListContextType | undefined>(undefined);
 
 export const TopicListProvider = ({ children }: { children: ReactNode }) => {
-
     const { tenant } = useUserDetails();
     const [state, dispatch] = useReducer(reducer, initialState);
-
     const router = useRouter();
-    const httpClient = createHttpClient();
-    const queryClient = useQueryClient();
 
-    const searchParams = useSearchParams()
+    const searchParams = useSearchParams();
     const search = searchParams.get('search') ?? '';
     const status = searchParams.get('filter') ?? 'all';
     const view = searchParams.get('view') ?? 'cards';
     const pageSize = 15;
 
+    const data = useQuery(api.topics.list, { filter: status, search });
+    const isLoading = data === undefined;
+    const topics = (data?.topics ?? []) as Topic[];
+    const totalRowCount = data?.totalCount ?? 0;
+
+    const archiveTopic = useMutation(api.topics.archive);
+    const deleteTopic = useMutation(api.topics.remove);
+    const pauseTopic = useMutation(api.topics.pause);
+    const publishTopic = useMutation(api.topics.publish);
+    const generateInsight = useMutation(api.insights.generate);
+
+    const [isArchiving, setIsArchiving] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isPausing, setIsPausing] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
+    const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
+
     const handleRowClick = (row: Row<Topic>) => {
-        router.push(`/${tenant}/topics/${row.original.topicCode}`)
-    }
+        router.push(`/${tenant}/topics/${row.original.topicCode}`);
+    };
 
-    const { data, fetchNextPage, isFetching, isLoading, refetch, error } = useInfiniteQuery<GetTopicResponse>({
-        queryKey: [
-            'topics',
-            status, //refetch when the status changes
-            search, //refetch on user's search
-        ],
-        queryFn: async ({ pageParam = 0 }) => {
-            return await httpClient.get(`/api/topics?filter=${status}&page=${(pageParam as number) + 1}&pageSize=${pageSize}&search=${search}`)
-        },
-        initialPageParam: 0,
-        getNextPageParam: (_lastGroup, groups) => groups.length,
-        refetchOnWindowFocus: false,
-        placeholderData: keepPreviousData,
-    })
+    const selectedId = () => state.selectedTopic!.id as Id<"topics">;
 
-    const { isPending: isArchiving, mutateAsync: archiveTopicAsync } = useMutation({
-        mutationFn: () => httpClient.patch(`/api/topics/${state.selectedTopic!.id}/archive`),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                toast.error(validationError.message);
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        },
-        onSuccess: () => {
+    const handleArchiveTopic = async () => {
+        setIsArchiving(true);
+        try {
+            await archiveTopic({ id: selectedId() });
             toast.success('Topic Archived', { description: 'Topic has been moved to the archives.' });
-            dispatch({ type: 'CONFIRM_ARCHIVE_CLOSE' })
-            queryClient.invalidateQueries({ queryKey: ['topics'] })
+            dispatch({ type: 'CONFIRM_ARCHIVE_CLOSE' });
+        } catch (e) {
+            toast.error('Failed to archive topic', { description: e instanceof Error ? e.message : undefined });
+        } finally {
+            setIsArchiving(false);
         }
-    });
+    };
 
-    const { isPending: isDeleting, mutateAsync: deleteTopicAsync } = useMutation({
-        mutationFn: () => httpClient.delete(`/api/topics/${state.selectedTopic!.id}`),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                toast.error(validationError.message);
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        },
-        onSuccess: () => {
+    const handleDeleteTopic = async () => {
+        setIsDeleting(true);
+        try {
+            await deleteTopic({ id: selectedId() });
             toast.success('Topic Deleted', { description: 'Topic has been deleted permanently.' });
-            dispatch({ type: 'CONFIRM_DELETE_CLOSE' })
-            queryClient.invalidateQueries({ queryKey: ['topics'] })
+            dispatch({ type: 'CONFIRM_DELETE_CLOSE' });
+        } catch (e) {
+            toast.error('Failed to delete topic', { description: e instanceof Error ? e.message : undefined });
+        } finally {
+            setIsDeleting(false);
         }
-    });
+    };
 
-    const { isPending: isPausing, mutateAsync: pauseTopicAsync } = useMutation({
-        mutationFn: () => httpClient.patch(`/api/topics/${state.selectedTopic!.id}/pause`, {}),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                toast.error(validationError.message);
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        },
-        onSuccess: () => {
+    const handlePauseTopic = async () => {
+        setIsPausing(true);
+        try {
+            await pauseTopic({ id: selectedId() });
             toast.success('Topic Paused', { description: 'Topic has been paused.' });
-            dispatch({ type: 'CONFIRM_PAUSE_CLOSE' })
-            queryClient.invalidateQueries({ queryKey: ['topics'] })
+            dispatch({ type: 'CONFIRM_PAUSE_CLOSE' });
+        } catch (e) {
+            toast.error('Failed to pause topic', { description: e instanceof Error ? e.message : undefined });
+        } finally {
+            setIsPausing(false);
         }
-    });
+    };
 
-    const { isPending: isPublishing, mutateAsync: publishTopicAsync } = useMutation({
-        mutationFn: () => httpClient.patch(`/api/topics/${state.selectedTopic!.id}/publish`, {}),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                toast.error('Unable to publish topic', {
-                    description: 'Please edit the topic and fill the required fields.'
-                });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        },
-        onSuccess: () => {
+    const handlePublishTopic = async () => {
+        setIsPublishing(true);
+        try {
+            await publishTopic({ id: selectedId() });
             toast.success('Topic Published', { description: 'Topic has been published.' });
-            dispatch({ type: 'CONFIRM_PUBLISH_CLOSE' })
-            queryClient.invalidateQueries({ queryKey: ['topics'] })
+            dispatch({ type: 'CONFIRM_PUBLISH_CLOSE' });
+        } catch {
+            toast.error('Unable to publish topic', {
+                description: 'Please edit the topic and fill the required fields.',
+            });
+        } finally {
+            setIsPublishing(false);
         }
-    });
+    };
 
-    const { isPending: isGeneratingInsight, mutateAsync: generateInsightAsync } = useMutation({
-        mutationFn: () => httpClient.post<{
-            insightId: string;
-            insightCode: string;
-        }>(`/api/insights/${state.selectedTopic?.id}/generate`, {}),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                toast.error(validationError.message);
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        },
-        onSuccess: (response) => {
+    const handleGenerateInsight = async () => {
+        setIsGeneratingInsight(true);
+        try {
+            const res = await generateInsight({ topicId: selectedId() });
             toast.success('Topic insights generation has started', { description: 'Will let you know once the generation is done.' });
-            dispatch({ type: 'CONFIRM_GENERATE_INSIGHT_CLOSE' })
-            redirect(`/insights/${response.insightCode}`);
+            dispatch({ type: 'CONFIRM_GENERATE_INSIGHT_CLOSE' });
+            router.push(`/${tenant}/insights/${res.insightCode}`);
+        } catch (e) {
+            toast.error('Failed to start insight generation', { description: e instanceof Error ? e.message : undefined });
+        } finally {
+            setIsGeneratingInsight(false);
         }
-    });
-
-    //flatten the array of arrays from the useInfiniteQuery hook
-    const flatData = useMemo(
-        () => data?.pages?.flatMap(page => page?.topics ?? []) ?? [],
-        [data]
-    )
-
-    const totalRowCount = data?.pages?.[0]?.totalCount ?? 0
-    const totalFetched = flatData.length ?? 0
-
-    //called on scroll and possibly on mount to fetch more data as the user scrolls and reaches bottom of table
-    const fetchMoreOnBottomReached = useCallback(
-        () => {
-            const isAtBottom = Math.ceil(window.innerHeight + window.scrollY) >= document.documentElement.scrollHeight;
-            if (isAtBottom) {
-                //once the user has scrolled to the bottom of the page, fetch more data if we can
-                if (!isFetching && totalFetched < totalRowCount) {
-                    fetchNextPage()
-                }
-            }
-        },
-        [fetchNextPage, isFetching, totalFetched, totalRowCount]
-    )
-
-    useEffect(() => {
-        window.addEventListener('scroll', fetchMoreOnBottomReached);
-        return () => {
-            window.removeEventListener('scroll', fetchMoreOnBottomReached);
-        };
-    }, [fetchMoreOnBottomReached]);
+    };
 
     return (
         <TopicListContext.Provider value={{
             ...state,
-            topics: flatData,
+            topics,
             totalRowCount,
             pageSize,
             isLoading,
-            isFetching,
+            isFetching: false,
             isArchiving,
             isDeleting,
             isGeneratingInsight,
             isPausing,
             isPublishing,
-            error,
+            error: null,
             view,
             dispatch,
-            handleArchiveTopic: archiveTopicAsync,
-            handleDeleteTopic: deleteTopicAsync,
-            handleGenerateInsight: generateInsightAsync,
-            handlePauseTopic: pauseTopicAsync,
-            handlePublishTopic: publishTopicAsync,
+            handleArchiveTopic,
+            handleDeleteTopic,
+            handleGenerateInsight,
+            handlePauseTopic,
+            handlePublishTopic,
             handleRowClick,
-            handleRefetch: refetch
+            handleRefetch: () => undefined,
         }}>
             {children}
         </TopicListContext.Provider>

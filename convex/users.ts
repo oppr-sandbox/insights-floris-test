@@ -1,5 +1,44 @@
 import { query } from "./_generated/server";
-import { getCurrentUser } from "./lib/auth";
+import { getCurrentUser, requireCompany } from "./lib/auth";
+
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+// All users in the caller's company — for topic user-access and respondent lists.
+export const list = query({
+  args: {},
+  handler: async (ctx) => {
+    const { companyId } = await requireCompany(ctx);
+    const rows = await ctx.db
+      .query("users")
+      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .collect();
+    return rows.map((u) => {
+      const displayName =
+        u.displayName ??
+        [u.firstName, u.lastName].filter(Boolean).join(" ").trim() ??
+        u.email ??
+        "User";
+      return {
+        id: u._id,
+        displayName,
+        email: u.email ?? "",
+        position: u.role ?? "MEMBER",
+        role: u.role ?? "MEMBER",
+        userImage: u.userImage ?? u.image ?? "",
+        initials: initialsOf(displayName),
+        locationId: u.locationId ?? null,
+        disciplineId: u.disciplineId ?? null,
+      };
+    });
+  },
+});
 
 // Current authenticated user's profile + tenant context. Replaces GET /api/users/me.
 export const me = query({

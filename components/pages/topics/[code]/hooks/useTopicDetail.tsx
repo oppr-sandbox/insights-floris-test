@@ -1,5 +1,6 @@
-import { createHttpClient, InternalServerError, ValidationError } from '@/utils/api/createHttpClient';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '@/convex/_generated/api';
+import { Id } from '@/convex/_generated/dataModel';
 import React, { createContext, ReactElement, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { TopicAttachmentForm, TopicDetail, TopicFeedback, TopicRespondents, TopicStatistics, TopicStatus } from '../../data/schema';
 import { toast } from '@/components/ui/sonner';
@@ -12,7 +13,6 @@ import moment from 'moment';
 import { debounce } from '@/utils/helpers/helpers';
 import posthog from 'posthog-js';
 
-// Create context
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SaveFieldType = { name: string, value: any } | Record<string, any>;
 export type TopicAction = 'Save' | 'Publish' | 'Save and Publish';
@@ -32,7 +32,6 @@ const TopicDetailContext = createContext<{
     pauseTopicAction: () => Promise<boolean>,
     resetData: () => void,
 
-    //Statistics Tab
     statistics?: TopicStatistics,
     statsIsLoading: boolean,
     statsError: Error | null,
@@ -41,7 +40,6 @@ const TopicDetailContext = createContext<{
     respIsLoading: boolean,
     respError: Error | null,
 
-    //Feedbacks Tab
     feedbacks?: TopicFeedback[],
     feedbacksIsLoading: boolean,
     feedbacksError: Error | null,
@@ -62,84 +60,85 @@ function getComparableData(topicDetail: TopicDetail) {
     };
 }
 
-// Provider component
-export const TopicDetailProvider: React.FC<{ code: string, children: ReactElement }> = ({ code, children }) => {
-    const httpClient = createHttpClient();
+type UpdateArgs = {
+    id: Id<"topics">;
+    name?: string;
+    description?: string;
+    content?: string;
+    channels?: string[];
+    startDate?: number | null;
+    endDate?: number | null;
+    isAllUsers?: boolean;
+    userIds?: Id<"users">[];
+};
 
-    // TODO: Wrap the layout to user provider to get the user easily 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toUpdateArgs(id: string, changes: Record<string, any>): UpdateArgs {
+    const args: UpdateArgs = { id: id as Id<"topics"> };
+    if ('name' in changes) args.name = changes.name;
+    if ('description' in changes) args.description = changes.description;
+    if ('content' in changes) args.content = changes.content;
+    if ('channels' in changes) args.channels = changes.channels;
+    if ('startDate' in changes) args.startDate = changes.startDate ? moment(changes.startDate).valueOf() : null;
+    if ('endDate' in changes) args.endDate = changes.endDate ? moment(changes.endDate).valueOf() : null;
+    if ('isAllUsers' in changes) args.isAllUsers = changes.isAllUsers;
+    if ('userIds' in changes) args.userIds = changes.userIds as Id<"users">[];
+    return args;
+}
+
+export const TopicDetailProvider: React.FC<{ code: string, children: ReactElement }> = ({ code, children }) => {
     const { user } = useUserDetails();
 
     const [initialData, setInitialData] = useState<TopicDetail | undefined>();
     const [topicDetail, setTopicDetail] = useState<TopicDetail | undefined>();
     const [id, setId] = useState<string | undefined>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [updatedData, setUpdatedData] = useState<Record<string, any>>({});
 
-    // TODO: handle query error
-    const { data: topicDetailResponse, error, isLoading } = useQuery<TopicDetail>({
-        queryKey: ['topic', code],
-        gcTime: 0,
-        queryFn: () => httpClient.get(`/api/topics/${code}`),
-        enabled: !!code,
-    });
+    const [isSaving, setIsSaving] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
+    const [isPausing, setIsPausing] = useState(false);
 
-    const { isPending: isSaving, mutateAsync: updateTopicAsync } = useMutation({
-        mutationFn: (data: SaveFieldType) => httpClient.put(`/api/topics/${id}`, data),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                toast.error(validationError.message, { description: 'Please fill all required fields' });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        }
-    });
+    const topicDetailResponse = useQuery(api.topics.getByCode, { code });
+    const isLoading = topicDetailResponse === undefined;
 
-    const { isPending: isPublishing, mutateAsync: publishTopicAsync } = useMutation({
-        mutationFn: () => httpClient.patch(`/api/topics/${id}/publish`, {}),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                toast.error(validationError.message, { description: 'Please fill all required fields' });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        }
-    });
+    const updateTopic = useMutation(api.topics.update);
+    const publishTopic = useMutation(api.topics.publish);
+    const pauseTopic = useMutation(api.topics.pause);
+    const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+    const addAttachments = useMutation(api.topics.addAttachments);
 
-    const { isPending: isPausing, mutateAsync: pauseTopicAsync } = useMutation({
-        mutationFn: () => httpClient.patch(`/api/topics/${id}/pause`, {}),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                toast.error(validationError.message);
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        },
-        onSuccess: (): boolean => {
-            return true;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const persist = useCallback(async (changes: Record<string, any>) => {
+        if (!id) return;
+        setIsSaving(true);
+        try {
+            await updateTopic(toUpdateArgs(id, changes));
+        } catch (e) {
+            toast.error('Failed to save topic', { description: e instanceof Error ? e.message : undefined });
+        } finally {
+            setIsSaving(false);
         }
-    });
+    }, [id, updateTopic]);
 
     const pauseTopicAction = async () => {
+        if (!id) return false;
+        setIsPausing(true);
         try {
-            await pauseTopicAsync();
+            await pauseTopic({ id: id as Id<"topics"> });
             posthog.capture('topic_paused', { topic_code: code, topic_id: id });
             return true;
-        } catch {
+        } catch (e) {
+            toast.error('Failed to pause topic', { description: e instanceof Error ? e.message : undefined });
             return false;
+        } finally {
+            setIsPausing(false);
         }
     };
 
     const buildPayload = () => {
         if (!topicDetail) throw new Error('Payload cannot be null');
-
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const payload: Record<string, any> = {
             name: topicDetail.name,
             description: topicDetail.description,
@@ -151,7 +150,6 @@ export const TopicDetailProvider: React.FC<{ code: string, children: ReactElemen
             isAllUsers: topicDetail.isAllUsers ?? false,
             userIds: topicDetail.isAllUsers ? [] : topicDetail.userIds,
         };
-
         return topicDetailSchema.parse(payload);
     };
 
@@ -161,13 +159,13 @@ export const TopicDetailProvider: React.FC<{ code: string, children: ReactElemen
                 description: (
                     <ul className='ml-4 list-disc'>
                         {error.issues.map((e, i) => (
-                            <li key={i} className='text-xs'>
-                                {e.message}
-                            </li>
+                            <li key={i} className='text-xs'>{e.message}</li>
                         ))}
                     </ul>
                 ),
             });
+        } else if (error instanceof Error) {
+            toast.error(`Failed to ${action}`, { description: error.message });
         } else {
             console.error(`Failed to ${action}`, error);
         }
@@ -175,17 +173,17 @@ export const TopicDetailProvider: React.FC<{ code: string, children: ReactElemen
 
     const handleTopicAction = async (action: TopicAction): Promise<boolean> => {
         try {
-
             const payload = buildPayload();
 
             if (action === 'Save' || action === 'Save and Publish') {
-                await saveField(payload);
+                setIsSaving(true);
+                await updateTopic(toUpdateArgs(id!, payload));
+                setIsSaving(false);
             }
             if (action === 'Publish' || action === 'Save and Publish') {
-                await publishTopicAsync();
-            }
-
-            if (action === 'Publish' || action === 'Save and Publish') {
+                setIsPublishing(true);
+                await publishTopic({ id: id as Id<"topics"> });
+                setIsPublishing(false);
                 posthog.capture('topic_published', { topic_code: code, topic_id: id });
             }
 
@@ -199,24 +197,12 @@ export const TopicDetailProvider: React.FC<{ code: string, children: ReactElemen
             toast.success(successMessage);
             return true;
         } catch (err) {
+            setIsSaving(false);
+            setIsPublishing(false);
             handleError(err, action);
             return false;
         }
     };
-
-    const { isPending: uploadIsPending, isSuccess: uploadSucceeded, mutateAsync: uploadTopicAttachmentAsync } = useMutation({
-        mutationFn: (formData: FormData) => httpClient.patch(`/api/topics/${id}/attachments`, formData),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                toast.error(validationError.message, { description: 'Please fill all required fields' });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        }
-    });
 
     const createPayload = (field: SaveFieldType) =>
         'value' in field ? { [field.name]: field.value } : field;
@@ -224,17 +210,16 @@ export const TopicDetailProvider: React.FC<{ code: string, children: ReactElemen
     const debounceUpdateTopic = useCallback(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         debounce(async (value: Record<string, any>) => {
-            await updateTopicAsync(value)
+            await persist(value);
         }, 3000),
-        [updatedData]
+        [persist]
     );
 
     const saveField = useCallback(async (field: SaveFieldType) => {
         const payload = createPayload(field);
-        // await updateTopicAsync(payload);
-        setUpdatedData(prev => ({ ...prev!, ...payload }))
+        setUpdatedData(prev => ({ ...prev!, ...payload }));
         setTopicDetail(prev => ({ ...prev!, ...payload }));
-    }, [updateTopicAsync]);
+    }, []);
 
     const updateFormField = useCallback((field: SaveFieldType) => {
         const payload = createPayload(field);
@@ -246,32 +231,44 @@ export const TopicDetailProvider: React.FC<{ code: string, children: ReactElemen
     }, [initialData]);
 
     const uploadAttachments = async (attachments: TopicAttachmentForm[]) => {
-        if (!attachments || attachments.length === 0) return false;
-
-        const formData = new FormData();
-        const uploadedFiles: AttachmentData[] = [];
-
-        attachments.forEach((attach, idx) => {
-            if (!attach.file) return;
-
-            formData.append(`attachment[${idx}].id`, attach.id);
-            formData.append(`attachment[${idx}].file`, attach.file);
-
-            uploadedFiles.push({
-                id: attach.id,
-                url: URL.createObjectURL(attach.file),
-                fileName: attach.file.name,
-                fileExtension: attach.file.name.split('.').pop() || '',
-                fileSize: attach.file.size,
-                contentType: attach.file.type,
-                contentHash: '',
-                createdAt: new Date().toISOString(),
-                createdBy: `${user.firstName} ${user.lastName}`,
-            });
-        });
+        if (!attachments || attachments.length === 0 || !id) return false;
 
         try {
-            await uploadTopicAttachmentAsync(formData);
+            const files: Array<{ storageId: Id<"_storage">, fileName: string, fileExtension: string, fileSize: number, contentType: string }> = [];
+            const uploadedFiles: AttachmentData[] = [];
+
+            for (const attach of attachments) {
+                if (!attach.file) continue;
+                const uploadUrl = await generateUploadUrl();
+                const res = await fetch(uploadUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': attach.file.type },
+                    body: attach.file,
+                });
+                const { storageId } = await res.json();
+                const ext = attach.file.name.split('.').pop() || '';
+
+                files.push({
+                    storageId: storageId as Id<"_storage">,
+                    fileName: attach.file.name,
+                    fileExtension: ext,
+                    fileSize: attach.file.size,
+                    contentType: attach.file.type,
+                });
+                uploadedFiles.push({
+                    id: attach.id,
+                    url: URL.createObjectURL(attach.file),
+                    fileName: attach.file.name,
+                    fileExtension: ext,
+                    fileSize: attach.file.size,
+                    contentType: attach.file.type,
+                    contentHash: '',
+                    createdAt: new Date().toISOString(),
+                    createdBy: `${user.firstName} ${user.lastName}`,
+                });
+            }
+
+            await addAttachments({ id: id as Id<"topics">, files });
 
             posthog.capture('topic_attachment_uploaded', {
                 topic_code: code,
@@ -283,7 +280,6 @@ export const TopicDetailProvider: React.FC<{ code: string, children: ReactElemen
                 ...prev!,
                 topicAttachments: [...(prev?.topicAttachments ?? []), ...uploadedFiles],
             }));
-
             setTopicDetail((prev) => ({
                 ...prev!,
                 topicAttachments: [...(prev?.topicAttachments ?? []), ...uploadedFiles],
@@ -292,7 +288,6 @@ export const TopicDetailProvider: React.FC<{ code: string, children: ReactElemen
             return true;
         } catch (error) {
             posthog.captureException(error);
-            console.error('Upload failed:', error);
             toast.error('Failed to upload attachment.');
             return false;
         }
@@ -300,39 +295,19 @@ export const TopicDetailProvider: React.FC<{ code: string, children: ReactElemen
 
     const hasChanges = useMemo(() => {
         if (!initialData || !topicDetail) return false;
-
-        const initialComparable = getComparableData(initialData);
-        const currentComparable = getComparableData(topicDetail);
-
-        return !isEqual(initialComparable, currentComparable);
+        return !isEqual(getComparableData(initialData), getComparableData(topicDetail));
     }, [initialData, topicDetail]);
 
-    // Tab details
-    const { data: statistics, isLoading: statsIsLoading, error: statsError } = useQuery<TopicStatistics>({
-        queryKey: ["topic", id, 'statistics'],
-        queryFn: () => httpClient.get(`/api/topic/statistics/${id}`),
-        enabled: !!id && !!topicDetail && topicDetail.status !== TopicStatus.Draft,
-    });
-
-    const { data: respondents, isLoading: respIsLoading, error: respError } = useQuery<TopicRespondents[]>({
-        queryKey: ["topic", id, 'respondents'],
-        queryFn: () => httpClient.get(`/api/topic/respondents/${id}`),
-        enabled: !!id && !!topicDetail && topicDetail.status !== TopicStatus.Draft,
-    });
-
-    const {
-        data: feedbacks, isLoading: feedbacksIsLoading, error: feedbacksError,
-    } = useQuery<TopicFeedback[]>({
-        queryKey: ["topic", id, 'feedbacks'],
-        queryFn: () => httpClient.get(`/api/topic/feedbacks/${id}`),
-        enabled: !!id && !!topicDetail && topicDetail.status !== TopicStatus.Draft,
-    })
+    const statsEnabled = !!id && !!topicDetail && topicDetail.status !== TopicStatus.Draft;
+    const statistics = useQuery(api.topics.statistics, statsEnabled ? { id: id as Id<"topics"> } : "skip");
+    const respondents = useQuery(api.topics.respondents, statsEnabled ? { id: id as Id<"topics"> } : "skip");
+    const feedbacks = useQuery(api.topics.topicFeedbacks, statsEnabled ? { id: id as Id<"topics"> } : "skip");
 
     useEffect(() => {
         if (topicDetailResponse) {
             setId(topicDetailResponse.id);
-            setTopicDetail(topicDetailResponse);
-            setInitialData(cloneDeep(topicDetailResponse));
+            setTopicDetail(topicDetailResponse as unknown as TopicDetail);
+            setInitialData(cloneDeep(topicDetailResponse) as unknown as TopicDetail);
         }
     }, [topicDetailResponse]);
 
@@ -361,25 +336,23 @@ export const TopicDetailProvider: React.FC<{ code: string, children: ReactElemen
             pauseTopicAction,
             resetData,
 
-            statistics,
-            statsIsLoading,
-            statsError,
+            statistics: statistics as TopicStatistics | undefined,
+            statsIsLoading: statsEnabled && statistics === undefined,
+            statsError: null,
 
-            respondents,
-            respIsLoading,
-            respError,
+            respondents: respondents as TopicRespondents[] | undefined,
+            respIsLoading: statsEnabled && respondents === undefined,
+            respError: null,
 
-            feedbacks,
-            feedbacksIsLoading,
-            feedbacksError,
-
+            feedbacks: feedbacks as TopicFeedback[] | undefined,
+            feedbacksIsLoading: statsEnabled && feedbacks === undefined,
+            feedbacksError: null,
         }}>
             {children}
         </TopicDetailContext.Provider>
     )
 };
 
-// Custom hook for convenience
 export const useTopicDetail = () => {
     const context = useContext(TopicDetailContext);
     if (!context) throw new Error('useTopicDetail must be used within a TopicDetailProvider');

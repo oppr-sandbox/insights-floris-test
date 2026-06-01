@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { useMutation } from "@tanstack/react-query";
-import { createHttpClient, InternalServerError, ValidationError } from "@/utils/api/createHttpClient";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { toast } from "@/components/ui/sonner";
 import { useRouter } from "next/navigation";
 import { useUserDetails } from "@/providers/UserContextProvider";
@@ -30,9 +31,10 @@ export interface SelectItem {
 
 export default function CreateTopicModal({ open, onOpenChange }: { open: boolean, onOpenChange: (open: boolean) => void }) {
     const { user, tenant } = useUserDetails();
-    const httpClient = createHttpClient();
     const router = useRouter();
     const [isRedirecting, setIsRedirecting] = useState(false);
+    const [isPending, setIsPending] = useState(false);
+    const createTopic = useMutation(api.topics.create);
     const form = useForm<TopicCreation>({
         resolver: zodResolver(topicCreationSchema),
         defaultValues: {
@@ -42,31 +44,6 @@ export default function CreateTopicModal({ open, onOpenChange }: { open: boolean
         },
         mode: "onChange"
     })
-    const { isPending, mutateAsync: createTopicAsync } = useMutation({
-        mutationFn: (data: any) => httpClient.post<CreateTopicResponse>('/api/topics', data),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                toast.error(validationError.message, { description: 'Please fill all required fields' });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        },
-        onSuccess: (res) => {
-            posthog.capture('topic_created', {
-                topic_code: res.topicCode,
-                topic_id: res.id,
-                name: form.getValues('name'),
-                discipline_id: form.getValues('disciplineId'),
-                location_id: form.getValues('locationId'),
-            });
-            toast.success(`Topic ${res.topicCode} has been created.`);
-            setIsRedirecting(true);
-            router.push(`/${tenant}/topics/${res.topicCode}`);
-        }
-    });
 
     const handleOpenChange = (open: boolean) => {
         if (!open) {
@@ -84,7 +61,30 @@ export default function CreateTopicModal({ open, onOpenChange }: { open: boolean
         const formValues = form.getValues();
         const payload = topicCreationSchema.parse(formValues);
 
-        createTopicAsync(payload);
+        setIsPending(true);
+        try {
+            const res = await createTopic({
+                name: payload.name,
+                locationId: payload.locationId as Id<"locations">,
+                disciplineId: payload.disciplineId as Id<"disciplines">,
+            });
+            posthog.capture('topic_created', {
+                topic_code: res.topicCode,
+                topic_id: res.id,
+                name: payload.name,
+                discipline_id: payload.disciplineId,
+                location_id: payload.locationId,
+            });
+            toast.success(`Topic ${res.topicCode} has been created.`);
+            setIsRedirecting(true);
+            router.push(`/${tenant}/topics/${res.topicCode}`);
+        } catch (e) {
+            toast.error('Failed to create topic', {
+                description: e instanceof Error ? e.message : 'Please fill all required fields',
+            });
+        } finally {
+            setIsPending(false);
+        }
     };
 
     useEffect(() => {

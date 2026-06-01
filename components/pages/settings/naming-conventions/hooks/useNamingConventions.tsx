@@ -1,8 +1,9 @@
 "use client"
 
-import { createContext, ReactNode, useContext, useReducer } from "react";
-import { createHttpClient, InternalServerError, ValidationError } from "@/utils/api/createHttpClient";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createContext, ReactNode, useContext, useState } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { Discipline, Location, NamingConventionInput } from "../data/schema";
 import { toast } from "@/components/ui/sonner";
 
@@ -25,160 +26,74 @@ type NamingConventionsContextType = {
 const NamingConventionsContext = createContext<NamingConventionsContextType | undefined>(undefined);
 
 export const NamingConventionsProvider = ({ children }: { children: ReactNode }) => {
-    const httpClient = createHttpClient();
-    const queryClient = useQueryClient();
+    const locationsData = useQuery(api.locations.list);
+    const disciplinesData = useQuery(api.disciplines.list);
 
-    // Location
-    const { data: locations, error: errorLocations, isLoading: isLoadingLocations } = useQuery<Location[]>({
-        queryKey: ['naming-conventions', 'locations'],
-        queryFn: () => httpClient.get('/api/locations')
-    });
+    const createLocation = useMutation(api.locations.create);
+    const removeLocation = useMutation(api.locations.remove);
+    const createDiscipline = useMutation(api.disciplines.create);
+    const removeDiscipline = useMutation(api.disciplines.remove);
 
-    const { isPending: isSavingLocation, mutateAsync: saveLocationAsync } = useMutation({
-        mutationFn: (data: NamingConventionInput) => httpClient.post<string>(`/api/locations`, data),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                const validationMessages =
-                    validationError.errors &&
-                    Object.values(validationError.errors).flat();
+    const [isSavingLocation, setIsSavingLocation] = useState(false);
+    const [isSavingDiscipline, setIsSavingDiscipline] = useState(false);
 
-                toast.error(`Failed to save location due to the following error: `, {
-                    description: validationMessages && validationMessages.length > 0 ? (
-                        <ul className="ml-4 list-disc">
-                            {validationMessages.map((msg, index) => (
-                                <li key={index} className='text-xs'>{msg}</li>
-                            ))}
-                        </ul>
-                    ) : (
-                        'Please fill all required fields.'
-                    )
-                });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        },
-        onSuccess: () => {
+    const saveLocationAsync = async (data: NamingConventionInput) => {
+        setIsSavingLocation(true);
+        try {
+            const id = await createLocation({ name: data.name, code: data.code });
             toast.success('Location Added', { description: 'The location has been saved successfully.' });
-            queryClient.invalidateQueries({ queryKey: ['naming-conventions', 'locations'] })
+            return id as string;
+        } catch (e) {
+            toast.error('Failed to save location', { description: e instanceof Error ? e.message : undefined });
+            throw e;
+        } finally {
+            setIsSavingLocation(false);
         }
-    });
+    };
 
-    const { isPending: isDeletingLocation, mutateAsync: deleteLocationAsync } = useMutation({
-        mutationFn: (id: string) => httpClient.delete(`/api/locations/${id}`),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                const validationMessages =
-                    validationError.errors &&
-                    Object.values(validationError.errors).flat();
-
-                toast.error(`Failed to delete location due to the following error: `, {
-                    description: validationMessages && validationMessages.length > 0 ? (
-                        <ul className="ml-4 list-disc">
-                            {validationMessages.map((msg, index) => (
-                                <li key={index} className='text-xs'>{msg}</li>
-                            ))}
-                        </ul>
-                    ) : (
-                        'Please fill all required fields.'
-                    )
-                });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        },
-        onSuccess: () => {
-            toast.success('Location Deleted', { description: 'The location was deleted successfuly.' });
-            queryClient.invalidateQueries({ queryKey: ['naming-conventions', 'locations'] })
+    const deleteLocationAsync = async (id: string) => {
+        try {
+            await removeLocation({ id: id as Id<"locations"> });
+            toast.success('Location Deleted', { description: 'The location was deleted successfully.' });
+        } catch (e) {
+            toast.error('Failed to delete location', { description: e instanceof Error ? e.message : undefined });
         }
-    });
+    };
 
-    // Discipline
-    const { data: disciplines, error: errorDisciplines, isLoading: isLoadingDisciplines } = useQuery<Discipline[]>({
-        queryKey: ['naming-conventions', 'disciplines'],
-        queryFn: () => httpClient.get('/api/disciplines')
-    });
-
-    const { isPending: isSavingDiscipline, mutateAsync: saveDisciplineAsync } = useMutation({
-        mutationFn: (data: NamingConventionInput) => httpClient.post<string>(`/api/disciplines`, data),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                const validationMessages =
-                    validationError.errors &&
-                    Object.values(validationError.errors).flat();
-
-                toast.error(`Failed to save discipline due to the following error: `, {
-                    description: validationMessages && validationMessages.length > 0 ? (
-                        <ul className="ml-4 list-disc">
-                            {validationMessages.map((msg, index) => (
-                                <li key={index} className='text-xs'>{msg}</li>
-                            ))}
-                        </ul>
-                    ) : (
-                        'Please fill all required fields.'
-                    )
-                });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        },
-        onSuccess: () => {
+    const saveDisciplineAsync = async (data: NamingConventionInput) => {
+        setIsSavingDiscipline(true);
+        try {
+            const id = await createDiscipline({ name: data.name, code: data.code });
             toast.success('Discipline Added', { description: 'The discipline has been saved successfully.' });
-            queryClient.invalidateQueries({ queryKey: ['naming-conventions', 'disciplines'] })
+            return id as string;
+        } catch (e) {
+            toast.error('Failed to save discipline', { description: e instanceof Error ? e.message : undefined });
+            throw e;
+        } finally {
+            setIsSavingDiscipline(false);
         }
-    });
+    };
 
-    const { isPending: isDeletingDiscipline, mutateAsync: deleteDisciplineAsync } = useMutation({
-        mutationFn: (id: string) => httpClient.delete(`/api/disciplines/${id}`),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                const validationMessages =
-                    validationError.errors &&
-                    Object.values(validationError.errors).flat();
-
-                toast.error(`Failed to delete discipline due to the following error: `, {
-                    description: validationMessages && validationMessages.length > 0 ? (
-                        <ul className="ml-4 list-disc">
-                            {validationMessages.map((msg, index) => (
-                                <li key={index} className='text-xs'>{msg}</li>
-                            ))}
-                        </ul>
-                    ) : (
-                        'Please fill all required fields.'
-                    )
-                });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        },
-        onSuccess: () => {
-            toast.success('Discipline Deleted', { description: 'The discipline was deleted successfuly.' });
-            queryClient.invalidateQueries({ queryKey: ['naming-conventions', 'disciplines'] })
+    const deleteDisciplineAsync = async (id: string) => {
+        try {
+            await removeDiscipline({ id: id as Id<"disciplines"> });
+            toast.success('Discipline Deleted', { description: 'The discipline was deleted successfully.' });
+        } catch (e) {
+            toast.error('Failed to delete discipline', { description: e instanceof Error ? e.message : undefined });
         }
-    });
+    };
 
     return (
         <NamingConventionsContext.Provider value={{
-            isLoadingLocations,
-            locations: locations ?? [],
+            isLoadingLocations: locationsData === undefined,
+            locations: (locationsData ?? []) as Location[],
             isSavingLocation,
             saveLocationAsync,
             isDeletingLocation: false,
             deleteLocationAsync,
 
-            isLoadingDisciplines,
-            disciplines: disciplines ?? [],
+            isLoadingDisciplines: disciplinesData === undefined,
+            disciplines: (disciplinesData ?? []) as Discipline[],
             isSavingDiscipline,
             saveDisciplineAsync,
             isDeletingDiscipline: false,
