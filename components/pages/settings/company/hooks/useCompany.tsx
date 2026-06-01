@@ -1,56 +1,43 @@
-import { createHttpClient, InternalServerError, ValidationError } from "@/utils/api/createHttpClient";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { useState } from "react";
 import { CompanyDetails, CompanyInput, Country, Language } from "../data/schema";
 import { toast } from "@/components/ui/sonner";
 
 export const useCompany = () => {
-    const httpClient = createHttpClient();
+    const detailsData = useQuery(api.company.get);
+    const details = detailsData as unknown as CompanyDetails | undefined;
+    const isLoading = detailsData === undefined;
 
-    const { data: details, isLoading } = useQuery<CompanyDetails>({
-        queryKey: ['settings', 'company'],
-        queryFn: () => httpClient.get('/api/company')
-    });
+    const languagesData = useQuery(api.reference.languages);
+    const languages = (languagesData ?? []) as unknown as Language[];
+    const isLoadingLanguages = languagesData === undefined;
 
-    const { data: languages, isLoading: isLoadingLanguages } = useQuery<Language[]>({
-        queryKey: ['settings', 'company', 'languages'],
-        queryFn: () => httpClient.get('/api/languages')
-    });
+    const countriesData = useQuery(api.reference.countries);
+    const countries = (countriesData ?? []) as unknown as Country[];
+    const isLoadingCountries = countriesData === undefined;
 
-    const { data: countries, isLoading: isLoadingCountries } = useQuery<Country[]>({
-        queryKey: ['settings', 'company', 'countries'],
-        queryFn: () => httpClient.get('/api/countries')
-    });
+    const updateCompany = useMutation(api.company.update);
+    const [isSaving, setIsSaving] = useState(false);
 
-    const { isPending: isSaving, mutateAsync: updateDetailsAsync } = useMutation({
-        mutationFn: (data: CompanyInput) => httpClient.patch(`/api/company`, data),
-        onSuccess: () => {
+    const updateDetailsAsync = async (data: CompanyInput) => {
+        setIsSaving(true);
+        try {
+            await updateCompany({
+                name: data.companyName,
+                companyEmail: data.companyEmail,
+                phone: data.companyPhone,
+                street: data.street,
+                postalCode: data.postalCode,
+                city: data.city,
+            });
             toast.success('Company details has been updated.');
-        },
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                const validationMessages =
-                    validationError.errors &&
-                    Object.values(validationError.errors).flat();
-
-                toast.error(`Failed to update company details due to the following error: `, {
-                    description: validationMessages && validationMessages.length > 0 ? (
-                        <ul className="ml-4 list-disc">
-                            {validationMessages.map((msg, index) => (
-                                <li key={index} className='text-xs'>{msg}</li>
-                            ))}
-                        </ul>
-                    ) : (
-                        'Please fill all required fields.'
-                    )
-                });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
+        } catch (e) {
+            toast.error('Failed to update company details', { description: e instanceof Error ? e.message : undefined });
+        } finally {
+            setIsSaving(false);
         }
-    });
+    };
 
     return {
         isLoading,

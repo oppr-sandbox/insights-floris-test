@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
-import { createHttpClient } from "@/utils/api/createHttpClient";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 import { Search, Users } from "lucide-react";
@@ -18,14 +18,14 @@ import { userListColumns } from "./columns";
 import UserItem from "./user-item";
 
 export default function UserList() {
-    const httpClient = createHttpClient();
     const [search, setSearch] = useState<string>("");
     const isMobile = useIsMobile();
 
-    const { data: users, error, isLoading, refetch } = useQuery<User[]>({
-        queryKey: ['settings', 'users'],
-        queryFn: () => httpClient.get('/api/users')
-    })
+    const data = useQuery(api.users.list);
+    const users = data as unknown as User[] | undefined;
+    const isLoading = data === undefined;
+    const error = null;
+    const refetch = () => undefined;
 
     const filteredUsers = useMemo(() => {
         if (!users) return [];

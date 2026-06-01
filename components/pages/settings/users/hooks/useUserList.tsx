@@ -1,7 +1,5 @@
 import { createContext, ReactNode, useContext, useReducer } from "react";
 import { InviteUserInput, User } from "../data/schema"
-import { createHttpClient, InternalServerError, ValidationError } from "@/utils/api/createHttpClient";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/sonner";
 
 type State = {
@@ -54,91 +52,21 @@ const UserListContext = createContext<UserListContextType | undefined>(undefined
 export const UserListProvider = ({ children }: { children: ReactNode }) => {
     const [state, dispatch] = useReducer(reducer, initialState);
 
-    const httpClient = createHttpClient();
-    const queryClient = useQueryClient();
+    // Invitations aren't used with magic-link auth: users self-provision on first
+    // sign-in with an @oppr.ai email. These handlers are kept as no-ops so the UI
+    // continues to render.
+    const isResendingInvite = false;
+    const isCancellingInvite = false;
 
-    const { isPending: isResendingInvite, mutateAsync: resendInviteAsync } = useMutation({
-        mutationFn: (data: InviteUserInput) => httpClient.put(`/api/users/invite`, data),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                const validationMessages =
-                    validationError.errors &&
-                    Object.values(validationError.errors).flat();
-
-                toast.error(`Resending of user invite failed due to following errors: `, {
-                    description: validationMessages && validationMessages.length > 0 ? (
-                        <ul className="ml-4 list-disc">
-                            {validationMessages.map((msg, index) => (
-                                <li key={index} className='text-xs'>{msg}</li>
-                            ))}
-                        </ul>
-                    ) : (
-                        'Please fill all required fields.'
-                    )
-                });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-            else if (error instanceof Error) {
-                toast.error('Failed to resend invitation', { description: error.message, });
-            }
-        },
-        onSuccess: () => {
-            toast.success('Invite Resent', { description: 'A new invitation email has been sent to the user.' });
-            dispatch({ type: 'CONFIRM_RESEND_INVITE_CLOSE' });
-            queryClient.invalidateQueries({ queryKey: ['settings', 'users'] });
-        }
-    });
-
-    const { isPending: isCancellingInvite, mutateAsync: cancelInviteAsync } = useMutation({
-        mutationFn: (id: string) => httpClient.post(`/api/users/${id}/cancel-invite`, undefined),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                const validationMessages =
-                    validationError.errors &&
-                    Object.values(validationError.errors).flat();
-
-                toast.error(`Cancellation of user invite failed due to following errors: `, {
-                    description: validationMessages && validationMessages.length > 0 ? (
-                        <ul className="ml-4 list-disc">
-                            {validationMessages.map((msg, index) => (
-                                <li key={index} className='text-xs'>{msg}</li>
-                            ))}
-                        </ul>
-                    ) : (
-                        'Please fill all required fields.'
-                    )
-                });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-            else if (error instanceof Error) {
-                toast.error('Failed to cancel invitation', { description: error.message, });
-            }
-        },
-        onSuccess: () => {
-            toast.success('Invite Cancelled', { description: 'The invitation was successfully cancelled.' });
-            dispatch({ type: 'CONFIRM_CANCEL_INVITE_CLOSE' });
-            queryClient.invalidateQueries({ queryKey: ['settings', 'users'] });
-        }
-    });
-
-    const handleResendInvite = async (data: InviteUserInput) => {
-        toast.promise(resendInviteAsync(data), {
-            loading: "Resending invitation email...",
-        });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const handleResendInvite = async (_data: InviteUserInput) => {
+        toast.default('Users sign in directly with their @oppr.ai email — no invitation needed.');
+        dispatch({ type: 'CONFIRM_RESEND_INVITE_CLOSE' });
     }
 
-    const handleCancelInvite = async (id: string) => {
-        toast.promise(cancelInviteAsync(id), {
-            loading: "Processing invitation cancellation...",
-        });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const handleCancelInvite = async (_id: string) => {
+        dispatch({ type: 'CONFIRM_CANCEL_INVITE_CLOSE' });
     }
 
     return (

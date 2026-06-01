@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { useQuery } from "@tanstack/react-query";
-import { createHttpClient } from "@/utils/api/createHttpClient";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 import { BookOpen, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,6 @@ type FeedbackModalProps = {
 
 export default function OperatorFeedbacksPage() {
 
-    const httpClient = createHttpClient();
     const searchParams = useSearchParams();
     const autoOpenTopicId = searchParams.get('topic');
 
@@ -41,10 +40,11 @@ export default function OperatorFeedbacksPage() {
         open: false
     });
 
-    const { data: topics, error, isLoading, refetch } = useQuery<Topic[]>({
-        queryKey: ['assigned-topics'],
-        queryFn: () => httpClient.get('/api/topics/assigned')
-    });
+    const data = useQuery(api.topics.assigned);
+    const topics = data as unknown as Topic[] | undefined;
+    const isLoading = data === undefined;
+    const error = null;
+    const refetch = () => undefined;
 
     useEffect(() => {
         if (autoOpenTopicId && topics && !autoOpened) {

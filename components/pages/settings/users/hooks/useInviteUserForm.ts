@@ -1,39 +1,23 @@
 "use client"
 
-import { createHttpClient, InternalServerError, ValidationError } from "@/utils/api/createHttpClient";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { toast } from "sonner";
 import { InviteUserInput } from "../data/schema";
-import posthog from "posthog-js";
 
+// With magic-link auth, users self-provision on first sign-in with an @oppr.ai
+// email, so there is no invitation step. This keeps the form's interface intact.
 export const useInviteUserForm = () => {
-    const httpClient = createHttpClient();
-    const queryClient = useQueryClient();
+    const [isSaving] = useState(false);
 
-    const { isPending: isSaving, mutateAsync: inviteUserAsync } = useMutation({
-        mutationFn: (data: InviteUserInput) => httpClient.put(`/api/users/invite`, data),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                toast.error(validationError.message, { description: 'Please fill all required fields' });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        },
-        onSuccess: (_data, variables) => {
-            posthog.capture('user_invited', { role: variables.role });
-            toast.success('Email Sent', { description: 'The invitation email has been delivered to the user.' });
-            queryClient.invalidateQueries({
-            queryKey: ['settings', 'users'],
-            exact: false
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const inviteUserAsync = async (_data: InviteUserInput) => {
+        toast.message("No invitation needed", {
+            description: "Users sign in directly with their @oppr.ai email.",
         });
-        }
-    });
+    };
 
     return {
         isSaving,
-        inviteUserAsync
-    }
-}
+        inviteUserAsync,
+    };
+};

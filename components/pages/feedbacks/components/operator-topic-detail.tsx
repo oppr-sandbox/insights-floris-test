@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 
-import { useQuery } from "@tanstack/react-query";
-import { createHttpClient } from "@/utils/api/createHttpClient";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { SerializedEditorState, SerializedLexicalNode, SerializedRootNode } from "lexical";
 
 import { cn } from "@/lib/utils";
@@ -56,18 +56,14 @@ interface OperatorTopicDetailProps {
 
 export default function OperatorTopicDetail({ topic, open, onClose, onRespond }: OperatorTopicDetailProps) {
 
-    const httpClient = createHttpClient();
-
     const [imageDialogOpen, setImageDialogOpen] = useState(false);
     const [imageJumpTo, setImageJumpTo] = useState(0);
     const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
     const [selectedPdf, setSelectedPdf] = useState<AttachmentData | null>(null);
 
-    const { data: topicDetail, isLoading } = useQuery<TopicDetail>({
-        queryKey: ['topic', topic.topicCode],
-        queryFn: () => httpClient.get(`/api/topics/${topic.topicCode}`),
-        enabled: open,
-    });
+    const data = useQuery(api.topics.getByCode, open ? { code: topic.topicCode } : "skip");
+    const topicDetail = data as unknown as TopicDetail | undefined;
+    const isLoading = data === undefined;
 
     const hasResponded = topic.myFeedbacksCount > 0;
     const daysLeft = remainingDays(topic.endDate);

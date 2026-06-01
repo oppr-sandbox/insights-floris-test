@@ -6,8 +6,8 @@ import { IconBulb } from "@tabler/icons-react";
 import { Users } from "lucide-react";
 import { SaveFieldType, useTopicDetail } from "../hooks/useTopicDetail";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createHttpClient } from "@/utils/api/createHttpClient";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { TopicStatus, User } from "../../data/schema";
 import { Input } from "@/components/ui/input";
 import { debounce } from "@/utils/helpers/helpers";
@@ -55,7 +55,6 @@ function groupUsersByPosition(users: User[]): Department[] {
 }
 
 export default function UserAccess() {
-    const httpClient = createHttpClient();
     const { updateFormField, saveField, data } = useTopicDetail();
     const isAutoSave = data!.status === TopicStatus.Draft;
     const [search, setSearch] = useState('');
@@ -76,10 +75,9 @@ export default function UserAccess() {
     }
     const [selectedRadio, setSelectedRadio] = useState<AccessOptionEnum>(determineSelection());
 
-    const { data: usersResponse, error, isLoading } = useQuery<ActiveUsersData[]>({
-        queryKey: ['topic', data!.id, 'users'],
-        queryFn: () => httpClient.get(`/api/users/active`),
-    });
+    const usersRaw = useQuery(api.users.list);
+    const usersResponse = usersRaw as unknown as ActiveUsersData[] | undefined;
+    const isLoading = usersRaw === undefined;
 
     const [accessOptions, setAccessOptions] = useState<Record<AccessOptionEnum, AccessOption>>({
         [AccessOptionEnum.All]: {

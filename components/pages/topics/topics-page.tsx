@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation"
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 import { Search } from "lucide-react"
 import { IconGridDots, IconList, IconPlus } from "@tabler/icons-react"
@@ -15,7 +16,6 @@ import ConfirmationDialog from "@/components/confirmation-dialog/confirmation-di
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import TopicList from "@/components/pages/topics/components/topic-list";
 
-import { createHttpClient } from "@/utils/api/createHttpClient";
 import { debounce } from "@/utils/helpers/helpers";
 import CreateTopicModal from "./components/create-topic-modal";
 import { useUserDetails } from "@/providers/UserContextProvider";
@@ -29,7 +29,6 @@ type InactiveCount = {
 export default function TopicsPage() {
 
     const { hasActiveSubscription } = useUserDetails();
-    const httpClient = createHttpClient();
     const searchParams = useSearchParams()
     const pathname = usePathname();
     const viewTab = searchParams.get('view') ?? 'cards';
@@ -37,10 +36,7 @@ export default function TopicsPage() {
     const [searchVal, setSearchVal] = useState<string>(searchParams.get('search') ?? '');
     const [openCreateModal, setOpenCreateModal] = useState(false);
 
-    const { data: inactiveCount } = useQuery<InactiveCount>({
-        queryKey: ['topics', 'inactive'],
-        queryFn: () => httpClient.get('/api/topics/inactive')
-    });
+    const inactiveCount = useQuery(api.topics.inactiveCounts) as InactiveCount | undefined;
 
     const renderWarningMessage = (inactiveCount:InactiveCount ) => {
         return `It looks like you have ${[

@@ -10,6 +10,7 @@
 
 import type * as ai from "../ai.js";
 import type * as auth from "../auth.js";
+import type * as company from "../company.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as disciplines from "../disciplines.js";
@@ -21,6 +22,7 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_codes from "../lib/codes.js";
 import type * as locations from "../locations.js";
 import type * as notifications from "../notifications.js";
+import type * as reference from "../reference.js";
 import type * as seed from "../seed.js";
 import type * as topics from "../topics.js";
 import type * as users from "../users.js";
@@ -34,6 +36,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   auth: typeof auth;
+  company: typeof company;
   crons: typeof crons;
   dashboard: typeof dashboard;
   disciplines: typeof disciplines;
@@ -45,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   "lib/codes": typeof lib_codes;
   locations: typeof locations;
   notifications: typeof notifications;
+  reference: typeof reference;
   seed: typeof seed;
   topics: typeof topics;
   users: typeof users;

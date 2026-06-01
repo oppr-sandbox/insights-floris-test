@@ -1,5 +1,6 @@
-import { query } from "./_generated/server";
-import { getCurrentUser, requireCompany } from "./lib/auth";
+import { query, mutation } from "./_generated/server";
+import { v } from "convex/values";
+import { getCurrentUser, requireCompany, requireUser } from "./lib/auth";
 
 function initialsOf(name: string): string {
   return name
@@ -9,6 +10,27 @@ function initialsOf(name: string): string {
     .map((p) => p[0]?.toUpperCase() ?? "")
     .join("");
 }
+
+export const updateProfile = mutation({
+  args: {
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    displayName: v.optional(v.string()),
+    userImage: v.optional(v.string()),
+    locationId: v.optional(v.id("locations")),
+    disciplineId: v.optional(v.id("disciplines")),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const patch: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(args)) {
+      if (val !== undefined) patch[k] = val;
+    }
+    await ctx.db.patch(user._id, patch);
+    return { ok: true };
+  },
+});
 
 // All users in the caller's company — for topic user-access and respondent lists.
 export const list = query({
