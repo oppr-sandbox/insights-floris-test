@@ -1,10 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { Bell, Mail, MailOpen, MoreVertical } from "lucide-react";
 import { NotificationData, NotificationStatusUpdatePayload } from "../data/schema";
 import NotificationItem from "./notification-item";
 import { useEffect, useMemo, useState } from "react";
-import { createHttpClient } from "@/utils/api/createHttpClient";
 import { useSearchParams } from "next/navigation";
 import { useNotificationStatusUpdate } from "../hooks/useNotificationStatusUpdate";
 import { Label } from "@/components/ui/label";
@@ -28,15 +28,27 @@ export default function NotificationList({ activeTab, sorting, isMobile }: Notif
 
     const searchParams = useSearchParams();
     const search = searchParams.get('search') ?? '';
-    const httpClient = createHttpClient();
 
-    const { data: notifications, error, isLoading, refetch } = useQuery<NotificationData[]>({
-        queryKey: ['notifications', 'data'],
-        queryFn: () => httpClient.get('/api/notifications')
-    })
+    const rawNotifications = useQuery(api.notifications.list);
+    const isLoading = rawNotifications === undefined;
+    const error = null;
+    const refetch = () => undefined;
 
-    const queryClient = useQueryClient();
-    const { isSaving, updateNotificationStatusAsync } = useNotificationStatusUpdate();
+    const notifications: NotificationData[] = useMemo(
+        () =>
+            (rawNotifications ?? []).map((n) => ({
+                id: n.id,
+                payload: n.payload,
+                title: n.title,
+                description: n.body,
+                type: n.type,
+                createdDate: n.createdAt,
+                readDate: n.read ? n.createdAt : null,
+            })),
+        [rawNotifications]
+    );
+
+    const { updateNotificationStatusAsync } = useNotificationStatusUpdate();
     const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
     const handleSelectedNotif = (id: string) => {
         setSelectedNotifications((prev) => {
@@ -55,7 +67,6 @@ export default function NotificationList({ activeTab, sorting, isMobile }: Notif
         }
 
         await updateNotificationStatusAsync(payload);
-        queryClient.invalidateQueries({ queryKey: ['notifications'] })
     }
 
     const handleClearSelected = () => {
@@ -69,7 +80,7 @@ export default function NotificationList({ activeTab, sorting, isMobile }: Notif
                 ? (() => {
                     const searchValue = search.toLowerCase();
                     return (
-                        notification.payload.topic.title.toLowerCase().includes(searchValue) ||
+                        (notification.payload?.topic?.title ?? "").toLowerCase().includes(searchValue) ||
                         notification.title.toLowerCase().includes(searchValue) ||
                         notification.description.toLowerCase().includes(searchValue)
                     );

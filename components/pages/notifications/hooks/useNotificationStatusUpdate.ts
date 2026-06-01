@@ -1,29 +1,32 @@
 "use client"
 
-import { createHttpClient, InternalServerError, ValidationError } from "@/utils/api/createHttpClient";
-import { useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
 import { NotificationStatusUpdatePayload } from "../data/schema";
 
 export const useNotificationStatusUpdate = () => {
-    const httpClient = createHttpClient();
+    const markRead = useMutation(api.notifications.markRead);
+    const [isSaving, setIsSaving] = useState(false);
 
-    const { isPending: isSaving, mutateAsync: updateNotificationStatusAsync } = useMutation({
-        mutationFn: (data: NotificationStatusUpdatePayload) => httpClient.post(`/api/notifications/update-status`, data),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                toast.error(validationError.message, { description: 'Please fill all required fields' });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
+    const updateNotificationStatusAsync = async (data: NotificationStatusUpdatePayload) => {
+        setIsSaving(true);
+        try {
+            const ids = (data.notificationIds ?? []) as Id<"notifications">[];
+            await markRead({ ids });
+        } catch (e) {
+            toast.error("Failed to update notification", {
+                description: e instanceof Error ? e.message : undefined,
+            });
+        } finally {
+            setIsSaving(false);
         }
-    });
+    };
 
     return {
         isSaving,
-        updateNotificationStatusAsync
-    }
-}
+        updateNotificationStatusAsync,
+    };
+};

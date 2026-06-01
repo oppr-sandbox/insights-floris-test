@@ -2,10 +2,9 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { Topic } from "../data/schema";
 import TopicItem from "./topic-item";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { createHttpClient } from "@/utils/api/createHttpClient";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { Skeleton } from "@/components/ui/skeleton";
-import ErrorState from "@/components/ui/error-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BookOpen } from "lucide-react";
 import { useUserDetails } from "@/providers/UserContextProvider";
@@ -13,23 +12,12 @@ import { useUserDetails } from "@/providers/UserContextProvider";
 export default function ActiveTopics() {
 
     const { tenant } = useUserDetails();
-    const httpClient = createHttpClient();
 
-    const { data: topics, error, isLoading, refetch } = useQuery<Topic[]>({
-        queryKey: ['my-active-topics'],
-        queryFn: () => httpClient.get('/api/topics/assigned')
-    });
+    const data = useQuery(api.topics.assigned);
+    const isLoading = data === undefined;
+    const topics = (data ?? []) as unknown as Topic[];
 
     const activeTopics = topics?.slice(0, 3);
-
-    if (error) return (
-        <Card>
-            <ErrorState
-                title="Unable to Load Topics"
-                message="We couldn't fetch the active topics. Please try again or contact support if the issue persists."
-                action={refetch} />
-        </Card>
-    );
 
     return (
         <Card>

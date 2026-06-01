@@ -399,6 +399,88 @@ export const inactiveCounts = query({
   },
 });
 
+export const assigned = query({
+  args: {},
+  handler: async (ctx) => {
+    const { user, companyId } = await requireCompany(ctx);
+    const all = await ctx.db
+      .query("topics")
+      .withIndex("by_company_status", (q) =>
+        q.eq("companyId", companyId).eq("status", "ACTIVE"),
+      )
+      .collect();
+    const totalUsers = await companyUserCount(ctx, companyId);
+
+    const assignedTopics = all.filter(
+      (t) => t.isAllUsers || (t.userIds ?? []).includes(user._id),
+    );
+
+    return Promise.all(
+      assignedTopics.map(async (t) => {
+        const stats = await computeStats(ctx, t, totalUsers);
+        const mine = await ctx.db
+          .query("feedback")
+          .withIndex("by_topic_user", (q) =>
+            q.eq("topicId", t._id).eq("userId", user._id),
+          )
+          .collect();
+        const creator = await ctx.db.get(t.userId);
+        return {
+          id: t._id,
+          topicCode: t.topicCode,
+          name: t.name,
+          description: t.description ?? "",
+          channels: t.channels ?? [],
+          initiatedByRole: creator?.role ?? "",
+          initiatedBy: userDisplayName(creator),
+          startDate: iso(t.startDate),
+          endDate: iso(t.endDate),
+          respondentsCount: stats.respondentsCount,
+          totalRespondentsCount: stats.totalRespondentsCount,
+          totalFeedbacksCount: stats.totalFeedbacksCount,
+          myFeedbacksCount: mine.length,
+          status: t.status,
+        };
+      }),
+    );
+  },
+});
+
+export const completed = query({
+  args: {},
+  handler: async (ctx) => {
+    const { user, companyId } = await requireCompany(ctx);
+    const all = await ctx.db
+      .query("topics")
+      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .collect();
+    const totalUsers = await companyUserCount(ctx, companyId);
+
+    const visible = all.filter(
+      (t) =>
+        (t.status === "COMPLETED" || t.status === "ACTIVE") &&
+        (t.isAllUsers || (t.userIds ?? []).includes(user._id)),
+    );
+
+    return Promise.all(
+      visible.map(async (t) => {
+        const stats = await computeStats(ctx, t, totalUsers);
+        const creator = await ctx.db.get(t.userId);
+        return {
+          id: t._id,
+          topicCode: t.topicCode,
+          topicName: t.name,
+          respondentsCount: stats.respondentsCount,
+          feedbacksCount: stats.totalFeedbacksCount,
+          initiatedByRole: creator?.role ?? "",
+          initiatedBy: userDisplayName(creator),
+          status: t.status,
+        };
+      }),
+    );
+  },
+});
+
 export const create = mutation({
   args: {
     name: v.string(),

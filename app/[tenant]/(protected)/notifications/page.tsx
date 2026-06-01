@@ -6,8 +6,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useQuery } from "@tanstack/react-query";
-import { createHttpClient } from "@/utils/api/createHttpClient";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePathname, useSearchParams } from "next/navigation";
 import { debounce } from "@/utils/helpers/helpers";
@@ -19,7 +19,6 @@ import ErrorState from "@/components/ui/error-state";
 export default function NotificationsPage() {
     const searchParams = useSearchParams();
     const isMobile = useIsMobile();
-    const httpClient = createHttpClient();
     const pathname = usePathname();
 
     const search = searchParams.get('search') ?? ''
@@ -28,10 +27,10 @@ export default function NotificationsPage() {
     const [sorting, setSorting] = useState<string>('newest-first');
     const [searchVal, setSearchVal] = useState<string>(search);
 
-    const { data: notificationStats, error, isLoading, refetch } = useQuery<NotificationStats>({
-        queryKey: ['notifications', 'stats'],
-        queryFn: () => httpClient.get('/api/notifications/stats')
-    })
+    const notificationStats = useQuery(api.notifications.stats) as NotificationStats | undefined;
+    const isLoading = notificationStats === undefined;
+    const error = null;
+    const refetch = () => undefined;
 
     const renderCards = () => {
         return notificationStats && !isLoading ? (
