@@ -438,6 +438,7 @@ export const assigned = query({
           respondentsCount: stats.respondentsCount,
           totalRespondentsCount: stats.totalRespondentsCount,
           totalFeedbacksCount: stats.totalFeedbacksCount,
+          progress: stats.progress,
           myFeedbacksCount: mine.length,
           status: t.status,
         };

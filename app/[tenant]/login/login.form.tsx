@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useAuthActions } from "@convex-dev/auth/react"
+import { useConvexAuth } from "convex/react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -25,8 +27,17 @@ const schema = z.object({
 });
 type LoginInput = z.infer<typeof schema>;
 
-export default function LoginForm({ defaultEmail }: { tenant: string; defaultEmail?: string }) {
+export default function LoginForm({ tenant, defaultEmail }: { tenant: string; defaultEmail?: string }) {
   const { signIn } = useAuthActions();
+  const { isAuthenticated } = useConvexAuth();
+  const router = useRouter();
+
+  // After the magic-link code is exchanged (client-side), land on the dashboard.
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace(`/${tenant}/dashboard`);
+    }
+  }, [isAuthenticated, tenant, router]);
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(schema),

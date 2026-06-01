@@ -33,6 +33,16 @@ export default convexAuthNextjsMiddleware(async (req, { convexAuth }) => {
   const tenant = segments[0];
 
   if (!tenant) {
+    // Magic-link landing: ConvexAuth appends ?code to SITE_URL (bare root).
+    // Forward the code to the login page (where the client provider exchanges
+    // it) instead of dropping it on a plain redirect.
+    const code = req.nextUrl.searchParams.get("code");
+    if (code) {
+      return nextjsMiddlewareRedirect(
+        req,
+        `/${DEFAULT_TENANT}/login?code=${encodeURIComponent(code)}`,
+      );
+    }
     return nextjsMiddlewareRedirect(
       req,
       `/${DEFAULT_TENANT}/${isAuthenticated ? "dashboard" : "login"}`,
