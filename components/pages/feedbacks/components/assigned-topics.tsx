@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { createHttpClient } from "@/utils/api/createHttpClient";
 
 import { BookOpen } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
@@ -32,16 +32,16 @@ type FeedbackModalProps = {
 export default function AssignedTopics({ searchVal, autoOpenTopicId }: { searchVal?: string; autoOpenTopicId?: string }) {
 
     const isMobile = useIsMobile();
-    const httpClient = createHttpClient();
     const [autoOpened, setAutoOpened] = useState(false);
     const [feedbackModal, setFeedbackModal] = useState<FeedbackModalProps>({
         open: false
     });
 
-    const { data: topics, error, isLoading, refetch } = useQuery<Topic[]>({
-        queryKey: ['assigned-topics'],
-        queryFn: () => httpClient.get('/api/topics/assigned')
-    });
+    const data = useQuery(api.topics.assigned);
+    const topics = data as unknown as Topic[] | undefined;
+    const isLoading = data === undefined;
+    const error = null;
+    const refetch = () => undefined;
 
     useEffect(() => {
         if (autoOpenTopicId && topics && !autoOpened) {

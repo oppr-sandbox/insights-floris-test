@@ -2,9 +2,9 @@
 
 import { useMemo, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { createHttpClient } from "@/utils/api/createHttpClient";
 
 import { Image, Mic, Text } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
@@ -31,16 +31,16 @@ type FeedbackModalProps = {
 export default function MyFeedbacks({ searchVal, showCompleted }: { searchVal?: string; showCompleted: boolean }) {
 
     const isMobile = useIsMobile();
-    const httpClient = createHttpClient();
 
     const [feedbackModal, setFeedbackModal] = useState<FeedbackModalProps>({
         open: false
     });
 
-    const { data: feedbacks, error, isLoading, refetch } = useQuery<Feedback[]>({
-        queryKey: ['my-feedbacks', showCompleted],
-        queryFn: () => httpClient.get('/api/feedbacks/me?showCompleted=' + showCompleted)
-    });
+    const data = useQuery(api.feedback.myFeedbacks, { showCompleted });
+    const feedbacks = data as unknown as Feedback[] | undefined;
+    const isLoading = data === undefined;
+    const error = null;
+    const refetch = () => undefined;
 
     const handleRowClicked = (feedback: Feedback) => {
         setFeedbackModal({

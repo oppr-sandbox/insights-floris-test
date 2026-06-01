@@ -6,8 +6,9 @@ import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogT
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "@/components/ui/sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { createHttpClient, InternalServerError, ValidationError } from "@/utils/api/createHttpClient";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { columns } from "./topic-list-columns";
 import { CompletedTopic } from "../data/schema";
 import { Row } from "@tanstack/react-table";
@@ -30,37 +31,19 @@ export default function TopicListModal(
     }
 ) {
 
-    const queryClient = useQueryClient();
-    const httpClient = createHttpClient();
     const isMobile = useIsMobile();
 
     const [selectedTopicId, setSelectedTopicId] = useState<string>();
     const [searchVal, setSearchVal] = useState<string>('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const { data: topics, error, isLoading } = useQuery<CompletedTopic[]>({
-        queryKey: ['completed-topics'],
-        queryFn: () => httpClient.get('/api/topics/completed'),
-        enabled: open
-    });
+    const data = useQuery(api.topics.completed);
+    const topics = (data ?? []) as unknown as CompletedTopic[];
+    const error = null;
+    const isLoading = data === undefined;
 
-    const { isPending: isSubmitting, mutateAsync: generateAsync } = useMutation({
-        mutationFn: (data: any) => httpClient.post(`/api/insights/${data.id}/generate`, {}),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                toast.error(validationError.message);
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        },
-        onSuccess: () => {
-            posthog.capture('insight_generation_started', { topic_id: selectedTopicId });
-            toast.success('Topic insights generation has started', { description: 'Will let you know once the generation is done.' });
-        }
-    });
+    const generate = useMutation(api.insights.generate);
 
     const handlefilterBy = (topic: CompletedTopic) => {
         // --- Search Match ---
@@ -108,9 +91,18 @@ export default function TopicListModal(
     }
 
     const handleGenerateClicked = async () => {
-        await generateAsync({ id: selectedTopicId })
-        queryClient.invalidateQueries({ queryKey: ['insights'] })
-        setOpen(false);
+        if (!selectedTopicId) return;
+        setIsSubmitting(true);
+        try {
+            await generate({ topicId: selectedTopicId as Id<"topics"> });
+            posthog.capture('insight_generation_started', { topic_id: selectedTopicId });
+            toast.success('Topic insights generation has started', { description: 'Will let you know once the generation is done.' });
+            setOpen(false);
+        } catch (e) {
+            toast.error('Failed to start generation', { description: e instanceof Error ? e.message : undefined });
+        } finally {
+            setIsSubmitting(false);
+        }
     }
 
     const renderList = () => {

@@ -18,9 +18,9 @@ import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import { TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { InsightDetails, PromptResponse } from "../data/schema";
-import { useMutation } from "@tanstack/react-query";
-import { createHttpClient, InternalServerError, ValidationError } from "@/utils/api/createHttpClient";
-import { toast } from "@/components/ui/sonner";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { useFeedbackPreview } from "../hooks/useFeedbackPreview";
 import { useUserDetails } from "@/providers/UserContextProvider";
 
@@ -44,21 +44,17 @@ export default function Chat(chatRequest: ChatRequest) {
 
     const { dispatch } = useFeedbackPreview();
 
-    const httpClient = createHttpClient();
+    const saveChatMessage = useMutation(api.insights.saveChatMessage);
 
-    const { isPending, mutateAsync: saveMessageAsync } = useMutation({
-        mutationFn: (data: any) => httpClient.post('/api/insights/chat', data),
-        onError: (error) => {
-            if (error instanceof ValidationError) {
-                const validationError = error as ValidationError;
-                toast.error(validationError.message, { description: 'Please fill all required fields' });
-            }
-            else if (error instanceof InternalServerError) {
-                const internalServerError = error as InternalServerError;
-                toast.error(internalServerError.message, { description: internalServerError.description });
-            }
-        }
-    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const saveMessageAsync = async (data: { insightId: string; role: string; parts: any; metadata?: any }) => {
+        await saveChatMessage({
+            insightId: data.insightId as Id<"insights">,
+            role: data.role,
+            parts: data.parts,
+            metadata: data.metadata,
+        });
+    };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();

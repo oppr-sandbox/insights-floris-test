@@ -1,7 +1,8 @@
 'use client'
 
-import { createHttpClient } from "@/utils/api/createHttpClient";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { InsightDetails, PromptResponse } from "../data/schema";
 import Loading from "./loading";
 import NotFound from "./not-found";
@@ -12,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { statuses } from "../data/data";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BarChart2, Lightbulb, Loader, MessageSquare, Text, TrendingUp, TriangleAlert, TriangleAlertIcon } from "lucide-react";
-import { useNotification } from "@/providers/NotificationProvider";
 import { useEffect } from "react";
 import Summary from "./summary";
 import Sentiments from "./sentiments";
@@ -23,20 +23,14 @@ import posthog from "posthog-js";
 
 export default function Details({ code }: { code: string }) {
 
-    const httpClient = createHttpClient();
-    const { data: insightDetails, error, isLoading, refetch } = useQuery<InsightDetails>({
-        queryKey: ['insight', code],
-        queryFn: () => httpClient.get(`/api/insights/${code}`),
-        enabled: !!code,
-    });
+    const insightDetails = useQuery(api.insights.getByCode, { code }) as InsightDetails | null | undefined;
+    const isLoading = insightDetails === undefined;
 
-    const { data: promptBuilder, error: promptBuilderError, isLoading: promptBuilderLoading, refetch: promptBuilderRefresh } = useQuery<PromptResponse>({
-        queryKey: ['promptBuilder', code],
-        queryFn: () => httpClient.get(`/api/insights/chat/${insightDetails?.id}`),
-        enabled: insightDetails?.id ? true : false,
-    });
-
-    const { subscribe, unsubscribe, connectionState } = useNotification();
+    const promptBuilder = useQuery(
+        api.insights.getChat,
+        insightDetails?.id ? { insightId: insightDetails.id as Id<"insights"> } : "skip"
+    ) as PromptResponse | undefined;
+    const promptBuilderLoading = !!insightDetails?.id && promptBuilder === undefined;
 
     useEffect(() => {
         if (insightDetails) {
@@ -48,20 +42,6 @@ export default function Details({ code }: { code: string }) {
             });
         }
     }, [insightDetails?.id]);
-
-    useEffect(() => {
-        if (connectionState === 'Connected' && insightDetails) {
-            const handleNotification = (
-                _topic: string
-            ) => {
-                refetch()
-            };
-
-            subscribe("insights-generation-" + code, handleNotification);
-
-            return () => unsubscribe("insights-generation-" + insightDetails.id);
-        }
-    }, [connectionState, refetch, insightDetails]);
 
     if (isLoading || promptBuilderLoading) {
         return <Loading />

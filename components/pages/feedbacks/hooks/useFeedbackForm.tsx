@@ -1,6 +1,7 @@
 import { toast } from "@/components/ui/sonner";
-import { createHttpClient, ValidationError, InternalServerError } from "@/utils/api/createHttpClient";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import { FeedbackForm, FeedbackImage } from "../data/schema";
 import { urlToBlob } from "@/lib/utils";
@@ -14,10 +15,6 @@ export type FeedbackImageForm = {
     fileName: string;
     file?: File;
     isNew: boolean
-}
-
-type SaveFeedbackResponse = {
-    id: string;
 }
 
 type FeedbackFormData = {
@@ -38,6 +35,7 @@ type FeedbackFormState = {
     feedback: FeedbackForm | undefined;
 
     formData: FeedbackFormData;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     handleChange: (field: string, value: any) => void;
 }
 
@@ -51,10 +49,11 @@ type FeedbackFormProviderProps = {
 const FeedbackFormContext = createContext<FeedbackFormState | undefined>(undefined);
 
 export const FeedbackFormProvider = ({ topicId, topicStatus, id, children }: FeedbackFormProviderProps) => {
+    const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+    const saveFeedback = useMutation(api.feedback.save);
 
-    const httpClient = createHttpClient();
-    const queryClient = useQueryClient();
     const [feedbackId, setFeedbackId] = useState<string | undefined>();
+    const [isSaving, setIsSaving] = useState(false);
     const [formData, setFormData] = useState<FeedbackFormData>({
         text: '',
         images: [],
@@ -63,135 +62,69 @@ export const FeedbackFormProvider = ({ topicId, topicStatus, id, children }: Fee
 
     const isActive = topicStatus === TopicStatus.Active;
 
-    const { isPending: isSaving, mutateAsync: saveFeedbackAsync } = useMutation({
-        mutationFn: (data: FormData) => httpClient.put<SaveFeedbackResponse>(`/api/feedbacks/save`, data),
-        onSuccess: (response) => {
-            if (response.id) {
-                setFeedbackId(response.id);
-            }
-        }
-    });
+    const feedback = useQuery(
+        api.feedback.getById,
+        feedbackId ? { id: feedbackId as Id<"feedback"> } : "skip"
+    ) as FeedbackForm | undefined;
 
-    const { data: feedback } = useQuery<FeedbackForm>({
-        queryKey: ['feedback', feedbackId],
-        queryFn: () => httpClient.get('/api/feedbacks/' + feedbackId),
-        enabled: feedbackId !== undefined
-    });
-
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleChange = (field: string, value: any) => {
-        if (field === 'text') {
-            setFormData(prev => ({
-                ...prev,
-                text: value
-            }))
-        }
-        else if (field === 'images') {
-            setFormData(prev => ({
-                ...prev,
-                images: value
-            }))
-        }
-        else if (field === 'deletedImages') {
-            setFormData(prev => ({
-                ...prev,
-                deletedImages: value
-            }))
-        }
-        else if (field === 'transcript') {
-            setFormData(prev => ({
-                ...prev,
-                transcribeText: value
-            }))
-        }
-        else if (field === 'audio') {
-            setFormData(prev => ({
-                ...prev,
-                audio: value
-            }))
-        }
+        if (field === 'text') setFormData(prev => ({ ...prev, text: value }));
+        else if (field === 'images') setFormData(prev => ({ ...prev, images: value }));
+        else if (field === 'deletedImages') setFormData(prev => ({ ...prev, deletedImages: value }));
+        else if (field === 'transcript') setFormData(prev => ({ ...prev, transcribeText: value }));
+        else if (field === 'audio') setFormData(prev => ({ ...prev, audio: value }));
     }
 
-    const buildFormData = (): FormData => {
-        const requestformData = new FormData();
-
-        requestformData.append('topicId', topicId);
-
-        if (feedbackId)
-            requestformData.append('id', feedbackId);
-
-        if (formData.text)
-            requestformData.append('text', formData.text);
-
-        if (formData.audio) {
-            requestformData.append('audio.file', formData.audio);
-            requestformData.append('audio.transcribeText', formData.transcribeText ?? '');
-        }
-
-        if (formData.images) {
-            formData.images.filter(p => p.isNew).forEach((image, index) => {
-                if (image.file)
-                    requestformData.append(`image.insert[${index}]`, image.file);
-            });
-        }
-
-        if (formData.deletedImages) {
-            formData.deletedImages.forEach(image => {
-                requestformData.append('image.delete', image);
-            })
-        }
-
-        requestformData.append('submit', 'true');
-
-        return requestformData;
-    };
-
-    const handleError = (error: unknown, action: string) => {
-        if (error instanceof ValidationError) {
-            const validationError = error as ValidationError;
-            const validationMessages =
-                validationError.errors &&
-                Object.values(validationError.errors).flat();
-
-            toast.error(`Failed to ${action} due to the following error: `, {
-                description: validationMessages && validationMessages.length > 0 ? (
-                    <ul className="ml-4 list-disc">
-                        {validationMessages.map((msg, index) => (
-                            <li key={index} className='text-xs'>{msg}</li>
-                        ))}
-                    </ul>
-                ) : (
-                    'Please fill all required fields.'
-                )
-            });
-        }
-        else if (error instanceof InternalServerError) {
-            const internalServerError = error as InternalServerError;
-            toast.error(internalServerError.message, { description: internalServerError.description });
-        }
-        else {
-            toast.error(`Failed to ${action} feedback`);
-        }
+    const uploadFile = async (file: Blob, contentType: string): Promise<Id<"_storage">> => {
+        const url = await generateUploadUrl();
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': contentType },
+            body: file,
+        });
+        const { storageId } = await res.json();
+        return storageId as Id<"_storage">;
     };
 
     const handleFeedbackAction = async (): Promise<boolean> => {
-        const requestformData = buildFormData();
+        setIsSaving(true);
         try {
+            let audioStorageId: Id<"_storage"> | undefined;
+            let audioFileName: string | undefined;
+            if (formData.audio) {
+                audioStorageId = await uploadFile(formData.audio, 'audio/webm');
+                audioFileName = 'recording.webm';
+            }
 
-            await saveFeedbackAsync(requestformData);
+            const insertImages: Array<{ storageId: Id<"_storage">; fileName: string; contentType?: string; fileSize?: number }> = [];
+            for (const img of formData.images.filter(p => p.isNew && p.file)) {
+                const storageId = await uploadFile(img.file!, img.file!.type || 'image/jpeg');
+                insertImages.push({
+                    storageId,
+                    fileName: img.fileName || img.file!.name,
+                    contentType: img.file!.type,
+                    fileSize: img.file!.size,
+                });
+            }
 
-            queryClient.invalidateQueries({
-                queryKey: ['my-feedbacks'],
-                exact: true
+            const res = await saveFeedback({
+                id: feedbackId ? (feedbackId as Id<"feedback">) : undefined,
+                topicId: topicId as Id<"topics">,
+                text: formData.text || undefined,
+                audioStorageId,
+                audioFileName,
+                transcribeText: formData.transcribeText,
+                removeImageIds: formData.deletedImages as Id<"files">[],
+                insertImages,
+                submit: true,
             });
 
-            queryClient.invalidateQueries({
-                queryKey: ['assigned-topics'],
-                exact: true
-            });
+            if (res.id) setFeedbackId(res.id);
 
             posthog.capture('feedback_submitted', {
                 topic_id: topicId,
-                feedback_id: feedbackId,
+                feedback_id: res.id,
                 has_audio: !!formData.audio,
                 has_images: formData.images.length > 0,
                 has_text: !!formData.text,
@@ -199,34 +132,25 @@ export const FeedbackFormProvider = ({ topicId, topicStatus, id, children }: Fee
 
             toast.success('Feedback submitted successfully!');
             return true;
-
         } catch (err) {
-            handleError(err, 'submit');
+            toast.error('Failed to submit feedback', {
+                description: err instanceof Error ? err.message : undefined,
+            });
             return false;
+        } finally {
+            setIsSaving(false);
         }
     };
 
-
     useEffect(() => {
-
         async function renderImages(images?: FeedbackImage[]) {
             const files: FeedbackImageForm[] = [];
-
             if (images?.length) {
                 for (const img of images) {
-                    files.push({
-                        id: img.id,
-                        url: img.url,
-                        fileName: img.fileName,
-                        isNew: false
-                    });
+                    files.push({ id: img.id, url: img.url, fileName: img.fileName, isNew: false });
                 }
             }
-
-            setFormData(prev => ({
-                ...prev,
-                images: files
-            }));
+            setFormData(prev => ({ ...prev, images: files }));
 
             if (files.length > 0) {
                 for (const img of files) {
@@ -238,13 +162,8 @@ export const FeedbackFormProvider = ({ topicId, topicStatus, id, children }: Fee
                         img.file = undefined;
                     }
                 }
-
-                setFormData(prev => ({
-                    ...prev,
-                    images: files
-                }));
+                setFormData(prev => ({ ...prev, images: files }));
             }
-
         }
 
         if (feedback) {
@@ -252,11 +171,9 @@ export const FeedbackFormProvider = ({ topicId, topicStatus, id, children }: Fee
                 ...prev,
                 text: feedback.text ?? '',
                 transcribeText: feedback.audio?.transcription ?? ''
-            }))
-
+            }));
             renderImages(feedback.images);
         }
-
     }, [feedback])
 
     useEffect(() => {
@@ -267,12 +184,9 @@ export const FeedbackFormProvider = ({ topicId, topicStatus, id, children }: Fee
         <FeedbackFormContext.Provider value={{
             feedbackId,
             isActive,
-
             isSaving,
             handleFeedbackAction,
-
             feedback,
-
             formData,
             handleChange
         }}>
@@ -283,10 +197,8 @@ export const FeedbackFormProvider = ({ topicId, topicStatus, id, children }: Fee
 
 export const useFeedbackForm = () => {
     const context = useContext(FeedbackFormContext);
-
     if (!context) {
         throw new Error('useFeedbackForm must be used within a FeedbackFormProvider');
     }
-
     return context;
 }

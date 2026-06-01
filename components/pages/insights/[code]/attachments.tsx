@@ -2,9 +2,10 @@
 
 import AttachmentCard from "@/components/attachments/attachment-card"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { TopicContents } from "../../topics/data/schema";
-import { createHttpClient } from "@/utils/api/createHttpClient";
 import { File, Image } from "lucide-react";
 import ErrorState from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,17 +13,14 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export default function Attachments ({ topicId } : { topicId: string }) {
 
-    const httpClient = createHttpClient();
-    const {
-        data: contents, 
-        isLoading: contentsIsLoading, 
-        error: contentsError,
-        refetch
-    } = useQuery<TopicContents>({
-        queryKey: ['topic-contents', topicId],
-        queryFn: () => httpClient.get(`/api/topic/contents/${topicId}`),
-        enabled: !!topicId,
-    });
+    const data = useQuery(
+        api.topics.contents,
+        topicId ? { id: topicId as Id<"topics"> } : "skip"
+    );
+    const contents = data as unknown as TopicContents | undefined;
+    const contentsIsLoading = data === undefined;
+    const contentsError = null;
+    const refetch = () => undefined;
 
     if (contentsIsLoading) {
         return (

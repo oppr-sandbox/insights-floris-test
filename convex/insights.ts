@@ -116,6 +116,83 @@ export const getByCode = query({
   },
 });
 
+export const feedbacks = query({
+  args: { insightId: v.id("insights") },
+  handler: async (ctx, args) => {
+    const { companyId } = await requireCompany(ctx);
+    const insight = await ctx.db.get(args.insightId);
+    if (!insight || insight.companyId !== companyId) return [];
+
+    const out = [];
+    for (const fid of insight.feedbackIds) {
+      const f = await ctx.db.get(fid);
+      if (!f) continue;
+      const u = await ctx.db.get(f.userId);
+      const displayName = userDisplayName(u);
+
+      let audioFile = undefined;
+      if (f.audioFileId) {
+        const file = await ctx.db.get(f.audioFileId);
+        if (file) {
+          audioFile = {
+            id: file._id,
+            url: (await ctx.storage.getUrl(file.storageId)) ?? "",
+            fileName: file.fileName,
+            fileExtension: file.fileExtension ?? "",
+            fileSize: file.fileSize ?? 0,
+            contentType: file.contentType ?? "",
+            contentHash: "",
+            createdAt: new Date(file._creationTime).toISOString(),
+            createdBy: displayName,
+          };
+        }
+      }
+
+      const imageFiles = [];
+      for (const imgId of f.imageFileIds ?? []) {
+        const file = await ctx.db.get(imgId);
+        if (!file) continue;
+        imageFiles.push({
+          id: file._id,
+          url: (await ctx.storage.getUrl(file.storageId)) ?? "",
+          fileName: file.fileName,
+          fileExtension: file.fileExtension ?? "",
+          fileSize: file.fileSize ?? 0,
+          contentType: file.contentType ?? "",
+          contentHash: "",
+          createdAt: new Date(file._creationTime).toISOString(),
+          createdBy: displayName,
+        });
+      }
+
+      out.push({
+        id: f._id,
+        user: {
+          id: f.userId,
+          email: u?.email ?? "",
+          displayName,
+          initials: displayName
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((p) => p[0]?.toUpperCase() ?? "")
+            .join(""),
+          userImage: u?.userImage ?? u?.image ?? "",
+        },
+        dateSubmitted: iso(f.dateSubmitted) ?? "",
+        sentiment: f.sentiment,
+        text: f.text,
+        textLangCode: f.textLangCode,
+        transcribedText: f.transcribeText,
+        transcribedTextLangCode: f.transcribeTextLangCode,
+        imageFiles,
+        audioFile,
+      });
+    }
+    return out;
+  },
+});
+
 export const generate = mutation({
   args: { topicId: v.id("topics") },
   handler: async (ctx, args) => {
@@ -200,8 +277,30 @@ export const getChat = query({
     const { user, companyId } = await requireCompany(ctx);
     const insight = await ctx.db.get(args.insightId);
     if (!insight || insight.companyId !== companyId) {
-      return { messages: [] };
+      return { prompt: "", messages: [] };
     }
+
+    const topic = await ctx.db.get(insight.topicId);
+    const lines: string[] = [
+      "You are IDA, an expert analyst of employee feedback for this topic.",
+      "",
+      "**Topic Details:**",
+      `Topic Name: ${topic?.name ?? ""}`,
+      `Topic Description: ${topic?.description ?? ""}`,
+      `Topic Code: ${topic?.topicCode ?? ""}`,
+      "",
+      "**Raw Feedback Data:**",
+    ];
+    for (const fid of insight.feedbackIds) {
+      const f = await ctx.db.get(fid);
+      if (!f) continue;
+      lines.push("---");
+      lines.push(`Feedback Code: ${f.feedbackCode}`);
+      if (f.text) lines.push(`Text: "${f.text}"`);
+      if (f.transcribeText) lines.push(`Transcribed: "${f.transcribeText}"`);
+    }
+    const prompt = lines.join("\n");
+
     const messages = await ctx.db
       .query("aiChatHistory")
       .withIndex("by_insight_user", (q) =>
@@ -209,6 +308,7 @@ export const getChat = query({
       )
       .collect();
     return {
+      prompt,
       messages: messages.map((m) => ({
         id: m._id,
         role: m.role,

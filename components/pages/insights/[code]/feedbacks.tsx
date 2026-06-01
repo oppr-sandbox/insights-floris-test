@@ -1,8 +1,9 @@
 'use client'
 
-import { useQuery } from "@tanstack/react-query"
+import { useQuery } from "convex/react"
+import { api } from "@/convex/_generated/api"
+import { Id } from "@/convex/_generated/dataModel"
 import { TopicFeedback } from "../../topics/data/schema"
-import { createHttpClient } from "@/utils/api/createHttpClient"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FeedbackItem, FeedbackItemProps, FeedbacksSkeleton } from "@/components/feedbacks/feedbacks";
 import { MessageSquareQuote, Mic, Type, Image } from "lucide-react";
@@ -11,15 +12,14 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export default function Feedbacks({ insightId }: { insightId: string }) {
 
-    const httpClient = createHttpClient();
-
-    const {
-        data: feedbacks, isLoading: feedbacksIsLoading, error: feedbacksError, refetch
-    } = useQuery<TopicFeedback[]>({
-        queryKey: ["topic-feedbacks", insightId],
-        queryFn: () => httpClient.get(`/api/insight/${insightId}/feedbacks`),
-        enabled: !!insightId,
-    })
+    const data = useQuery(
+        api.insights.feedbacks,
+        insightId ? { insightId: insightId as Id<"insights"> } : "skip"
+    );
+    const feedbacks = data as unknown as TopicFeedback[] | undefined;
+    const feedbacksIsLoading = data === undefined;
+    const feedbacksError = null;
+    const refetch = () => undefined;
 
     const mapToFeedbackModel = (feedback: TopicFeedback) => {
         const mappedData: FeedbackItemProps = {

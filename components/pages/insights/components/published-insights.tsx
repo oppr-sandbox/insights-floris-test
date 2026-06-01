@@ -4,9 +4,9 @@ import { DataTable } from "@/components/data-table/data-table";
 import { Insight, PublishedInsight } from "../data/schema";
 import { publishedInsightsColumns } from "./columns";
 import { Row } from "@tanstack/react-table";
-import { useQuery } from '@tanstack/react-query';
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useRouter } from "next/navigation";
-import { createHttpClient } from "@/utils/api/createHttpClient";
 import { useIsMobile } from "@/hooks/use-mobile";
 import InsightItem from "./insight-item";
 import ListLoading from "@/components/ui/list-loading";
@@ -18,14 +18,14 @@ import { useUserDetails } from "@/providers/UserContextProvider";
 export default function PublishedInsights() {
 
     const router = useRouter();
-    const httpClient = createHttpClient();
     const isMobile = useIsMobile();
     const { tenant } = useUserDetails();
 
-    const { data: insights, error, isLoading, refetch } = useQuery<Insight[]>({
-        queryKey: ['published-insights'],
-        queryFn: () => httpClient.get('/api/insights/published')
-    });
+    const data = useQuery(api.insights.published);
+    const insights = (data ?? []) as unknown as Insight[];
+    const isLoading = data === undefined;
+    const error = null;
+    const refetch = () => undefined;
 
     if (isLoading) return (
         <ListLoading

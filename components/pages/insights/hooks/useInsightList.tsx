@@ -1,9 +1,10 @@
 import { toast } from "@/components/ui/sonner";
-import { createHttpClient, InternalServerError, ValidationError } from "@/utils/api/createHttpClient";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { Row } from "@tanstack/react-table";
 import { useRouter, } from "next/navigation";
-import { createContext, ReactNode, useContext, useReducer } from "react";
+import { createContext, ReactNode, useContext, useReducer, useState } from "react";
 import { Insight } from "../data/schema";
 import { useUserDetails } from "@/providers/UserContextProvider";
 import posthog from "posthog-js";
@@ -61,86 +62,54 @@ export const InsightListProvider = ({ children }: { children: ReactNode }) => {
     const [state, dispatch] = useReducer(reducer, initialState);
 
     const router = useRouter();
-    const httpClient = createHttpClient();
-    const queryClient = useQueryClient();
     const { tenant } = useUserDetails();
 
     const handleRowClick = (row: Row<Insight>) => {
         router.push(`/${tenant}/insights/${row.original.insightCode}`)
     }
 
-    const { data: insights, error, isLoading, refetch } = useQuery<Insight[]>({
-        queryKey: ['insights'],
-        queryFn: () => httpClient.get('/api/insights')
-    });
+    const data = useQuery(api.insights.list);
+    const insights = (data ?? []) as unknown as Insight[];
+    const isLoading = data === undefined;
+    const error = null;
+    const refetch = () => undefined;
 
-    const { isPending: isDeleting, mutateAsync: deleteInsightAsync } = useMutation({
-        mutationFn: () => httpClient.delete(`/api/insights/${state.selectedInsight?.id}`),
-    });
-
-    const { isPending: isPublishing, mutateAsync: publishInsightAsync } = useMutation({
-        mutationFn: () => httpClient.patch(`/api/insights/${state.selectedInsight?.id}/publish`, {}),
-    });
+    const deleteInsight = useMutation(api.insights.remove);
+    const publishInsight = useMutation(api.insights.publish);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
 
     const handleDeleteInsight = async () => {
+        setIsDeleting(true);
         try {
-            await deleteInsightAsync();
+            await deleteInsight({ id: state.selectedInsight!.id as Id<"insights"> });
             posthog.capture('insight_deleted', {
                 insight_id: state.selectedInsight?.id,
                 insight_code: state.selectedInsight?.insightCode,
             });
             toast.success('Insight Deleted', { description: 'Insight has been deleted permanently.' });
             dispatch({ type: 'CONFIRM_DELETE_CLOSE' })
-            queryClient.invalidateQueries({ queryKey: ['insights'] })
-        } catch (error) {
-            handleError(error)
+        } catch (e) {
+            toast.error('Failed to delete insight', { description: e instanceof Error ? e.message : undefined });
+        } finally {
+            setIsDeleting(false);
         }
     }
 
     const handlePublishInsight = async () => {
+        setIsPublishing(true);
         try {
-            await publishInsightAsync();
+            await publishInsight({ id: state.selectedInsight!.id as Id<"insights"> });
             posthog.capture('insight_published', {
                 insight_id: state.selectedInsight?.id,
                 insight_code: state.selectedInsight?.insightCode,
             });
             toast.success('Insight Published', { description: 'Insight is now visible to all members.' });
             dispatch({ type: 'CONFIRM_PUBLISH_CLOSE' })
-            queryClient.invalidateQueries({ queryKey: ['insights'] })
-            queryClient.invalidateQueries({ queryKey: ['published-insights'] })
-        } catch (error) {
-            handleError(error)
-        }
-    }
-
-    const handleError = (error: unknown) => {
-        if (error instanceof ValidationError) {
-            const validationError = error as ValidationError;
-            const errorMessages: string[] = []
-
-            for (const key in validationError.errors) {
-                if (validationError.errors.hasOwnProperty(key)) {
-                    for (const message of validationError.errors[key]) {
-                        errorMessages.push(message);
-                    }
-                }
-            }
-
-            toast.error(validationError.message, {
-                description: (
-                    <ul className='ml-4 list-disc'>
-                        {errorMessages.map((message, i) => (
-                            <li key={i} className='text-xs'>
-                                {message}
-                            </li>
-                        ))}
-                    </ul>
-                ),
-            });
-        }
-        else if (error instanceof InternalServerError) {
-            const internalServerError = error as InternalServerError;
-            toast.error(internalServerError.message, { description: internalServerError.description });
+        } catch (e) {
+            toast.error('Failed to publish insight', { description: e instanceof Error ? e.message : undefined });
+        } finally {
+            setIsPublishing(false);
         }
     }
 

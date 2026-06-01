@@ -10,8 +10,6 @@ import ErrorState from "@/components/ui/error-state";
 import ListLoading from "@/components/ui/list-loading";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BarChart } from "lucide-react";
-import { useEffect } from "react";
-import { useNotification } from "@/providers/NotificationProvider";
 import { useUserDetails } from "@/providers/UserContextProvider";
 import { useInsightList } from "../hooks/useInsightList";
 
@@ -19,24 +17,8 @@ export default function AllInsights() {
 
     const router = useRouter();
     const isMobile = useIsMobile();
-    const { user, tenant, hasPermission } = useUserDetails();
-    const { insights, error, isLoading, refetch: refetch } = useInsightList();
-
-    const { subscribe, unsubscribe, connectionState } = useNotification();
-
-    useEffect(() => {
-        if (connectionState === 'Connected') {
-            const handleNotification = (
-                _topic: string
-            ) => {
-                refetch()
-            };
-
-            subscribe("insights-generation-completed-" + user.companyId, handleNotification);
-
-            return () => unsubscribe("insights-generation-completed-" + user.companyId);
-        }
-    }, [connectionState, refetch]);
+    const { tenant, hasPermission } = useUserDetails();
+    const { insights, error, isLoading, refetch } = useInsightList();
 
     if (isLoading) return (
         <ListLoading
