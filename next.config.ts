@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   skipTrailingSlashRedirect: true,
   async rewrites() {
-      return [
+      const rewrites = [
         {
           source: '/ingest/static/:path*',
           destination: 'https://eu-assets.i.posthog.com/static/:path*',
@@ -13,15 +13,23 @@ const nextConfig: NextConfig = {
           source: '/ingest/:path*',
           destination: 'https://eu.i.posthog.com/:path*',
         },
-        {
+      ];
+      // Legacy REST/file proxies — only registered when their backend URL is
+      // configured (local dev). Omitted in the Convex-only production deploy so
+      // the build doesn't fail on an undefined destination.
+      if (process.env.FILE_URL) {
+        rewrites.push({
           source: '/files/:path*',
-          destination:  process.env.FILE_URL + '/:path*',
-        },
-        {
-          source: "/api/:path*",
-          destination: process.env.PUBLIC_API_URL + "/api/:path*",
-        }
-      ]
+          destination: `${process.env.FILE_URL}/:path*`,
+        });
+      }
+      if (process.env.PUBLIC_API_URL) {
+        rewrites.push({
+          source: '/api/:path*',
+          destination: `${process.env.PUBLIC_API_URL}/api/:path*`,
+        });
+      }
+      return rewrites;
   },
   images: {
     remotePatterns: [
