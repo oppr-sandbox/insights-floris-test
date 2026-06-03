@@ -43,8 +43,10 @@ export function NavUser({
   const { tenant } = useUserDetails()
   const { isMobile } = useSidebar()
   const [openProfileModal, setOpenProfileModal] = useState<boolean>(false);
-  const displayName = user.firstName + ' ' + user.lastName;
-  const initials = user.firstName[0].toUpperCase() + user.lastName[0].toUpperCase()
+  const fullName = `${user.firstName} ${user.lastName}`.trim();
+  const displayName = fullName || user.email || "User";
+  const nameInitials = `${user.firstName[0] ?? ""}${user.lastName[0] ?? ""}`.toUpperCase();
+  const initials = nameInitials || (user.email[0] ?? "?").toUpperCase();
 
   return (
     <>

@@ -70,7 +70,7 @@ export default function Lessons({ insightDetails }: { insightDetails: InsightDet
                                             <h4 className="text-h4 text-dark-grey font-semibold mb-3">Supporting Evidence</h4>
                                             <ul className="list-disc list-inside space-y-1">
                                                 {
-                                                    l.supporting_evidences.map((e, i) => (
+                                                    (l.supporting_evidences ?? []).map((e, i) => (
                                                         <li key={i} className="text-body text-medium-grey">{e.summarized_message}</li>
                                                     ))
                                                 }
@@ -80,7 +80,7 @@ export default function Lessons({ insightDetails }: { insightDetails: InsightDet
                                             <h4 className="text-h4 text-dark-grey font-semibold mb-3">Recommendations</h4>
                                             <ul className="list-disc list-inside space-y-1">
                                                 {
-                                                    l.recommendations.map((recommendation, i) => (
+                                                    (l.recommendations ?? []).map((recommendation, i) => (
                                                         <li key={i} className="text-body text-medium-grey">{recommendation}</li>
                                                     ))
                                                 }
@@ -89,7 +89,7 @@ export default function Lessons({ insightDetails }: { insightDetails: InsightDet
                                         <div>
                                             <h4 className="text-h4 text-dark-grey font-semibold mb-3">Potential Questions to ask IDA</h4>
                                             <div className="grid lg:grid-cols-3 gap-3 mb-4">
-                                                {l.potential_questions.map((pq, i) => (
+                                                {(l.potential_questions ?? []).map((pq, i) => (
                                                     <div
                                                         key={i}
                                                         className="group relative rounded-2xl border border-border/50 bg-accent/20 dark:bg-primary/10 p-4 shadow-sm hover:shadow-lg hover:border-primary/50 transition-all duration-200"

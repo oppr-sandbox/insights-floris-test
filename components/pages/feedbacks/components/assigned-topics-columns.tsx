@@ -6,8 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { DataTableColumnHeaderSort } from "@/components/data-table/data-table-column-header"
 import { statuses } from "../data/data"
 import { Topic } from "../data/schema"
-import { IconCalendar, IconUsers } from "@tabler/icons-react"
-import { MessageSquare } from "lucide-react"
+import { Calendar, MessageSquare, Users } from "lucide-react"
 import { formatDate, remainingDays } from "@/utils/helpers/helpers"
 import { channels } from "../../topics/data/data"
 import { cn } from "@/lib/utils"
@@ -85,11 +84,11 @@ export const columns: ColumnDef<Topic>[] = [
       return (
         <div className="flex flex-col space-y-1">
           <div className="flex items-center space-x-1">
-            <IconCalendar className="size-3 text-muted-foreground" />
+            <Calendar className="size-3 text-muted-foreground" />
             <span className="text-xs">Start: {formatDate(row.original.startDate)}</span>
           </div>
           <div className="flex items-center space-x-1">
-            <IconCalendar className="size-3 text-muted-foreground" />
+            <Calendar className="size-3 text-muted-foreground" />
             <span className="text-xs">End: {formatDate(row.original.endDate)}</span>
           </div>
         </div>
@@ -127,7 +126,7 @@ export const columns: ColumnDef<Topic>[] = [
       return (
         <div className="flex flex-col space-y-1">
           <div className="flex space-x-1 items-center">
-            <IconUsers className="size-3 text-muted-foreground" />
+            <Users className="size-3 text-muted-foreground" />
             <p className="text-xs">
               {data.respondentsCount}/{data.totalRespondentsCount} responded
             </p>

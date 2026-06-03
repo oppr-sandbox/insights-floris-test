@@ -1,13 +1,12 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { TabsContent } from "@/components/ui/tabs";
-import { Image, Mic, Type } from "lucide-react";
+import { Image, Mic, Type, Lightbulb } from "lucide-react";
 import { TopicChannels, TopicStatus } from "../../data/schema";
 import { SaveFieldType, useTopicDetail } from "../hooks/useTopicDetail";
 import { debounce } from "@/utils/helpers/helpers";
 import { useCallback, useMemo, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { IconBulb } from "@tabler/icons-react";
 
 export default function Channels() {
     const { updateFormField, saveField, data } = useTopicDetail();
@@ -98,7 +97,7 @@ export default function Channels() {
                 <Alert variant="info">
                     <AlertTitle>
                         <div className="flex flex-row items-center space-x-1">
-                            <IconBulb className="size-6" />
+                            <Lightbulb className="size-6" />
                             <h5>Channel Tips:</h5>
                         </div>
                     </AlertTitle>

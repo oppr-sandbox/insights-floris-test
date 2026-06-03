@@ -2,6 +2,10 @@ import { Download, Eye, FileText } from "lucide-react";
 import { Button } from "../ui/button";
 import { formatDate } from "@/utils/helpers/helpers";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
+import { KnowledgeStatus } from "./knowledge-status";
 import Image from "next/image";
 
 export interface AttachmentData {
@@ -14,12 +18,14 @@ export interface AttachmentData {
     contentHash: string;
     createdAt: string;
     createdBy: string;
+    parseStatus?: string;
 }
 
 
 export default function AttachmentCard({ attachment, onPreview }: { attachment: AttachmentData; onPreview?: () => void }) {
 
     const isPreviewable = attachment.contentType.startsWith("image/") || attachment.contentType === "application/pdf";
+    const reparse = useMutation(api.ingestion.reparse);
 
     const downloadAttachment = () => {
         const link = document.createElement("a");
@@ -70,6 +76,14 @@ export default function AttachmentCard({ attachment, onPreview }: { attachment: 
                     <div className="text-xs">
                         {((attachment.fileSize ?? 0) / (1024 * 1024)).toFixed(2)} MB • Uploaded by {attachment.createdBy} on {formatDate(attachment.createdAt)}
                     </div>
+                    {attachment.parseStatus &&
+                        <div className="mt-1">
+                            <KnowledgeStatus
+                                status={attachment.parseStatus}
+                                onRetry={() => reparse({ fileId: attachment.id as Id<"files"> })}
+                            />
+                        </div>
+                    }
                 </div>
                 <div className="flex-shrink-0 flex items-center">
                     {isPreviewable && onPreview && (

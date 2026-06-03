@@ -50,6 +50,14 @@ export function NavMain({
     }
   }, [isMobile, toggleSidebar])
 
+  const isActive = useCallback(
+    (url: string) => {
+      const full = `/${tenant}${url}`
+      return pathname === full || pathname.startsWith(`${full}/`)
+    },
+    [pathname, tenant]
+  )
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Menu</SidebarGroupLabel>
@@ -77,7 +85,7 @@ export function NavMain({
                     <SidebarMenuSub>
                       {item.items?.map((subItem) => (
                         <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton asChild isActive={pathname.startsWith(item.url)}>
+                          <SidebarMenuSubButton asChild isActive={isActive(item.url)}>
                             <Link href={`/${tenant}${subItem.url}`} onClick={handleMenuClick}>
                               <span>{subItem.title}</span>
                             </Link>
@@ -90,7 +98,7 @@ export function NavMain({
               </Collapsible>
             ) : (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton tooltip={item.title} asChild isActive={pathname.startsWith(item.url)}>
+                <SidebarMenuButton tooltip={item.title} asChild isActive={isActive(item.url)}>
                   <Link href={`/${tenant}${item.url}`} onClick={handleMenuClick}>
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>

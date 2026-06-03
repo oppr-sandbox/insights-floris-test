@@ -1,8 +1,7 @@
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { IconMoodEmpty, IconMoodHappy, IconMoodSad } from "@tabler/icons-react";
-import { InfoIcon, TrendingDown, TrendingUp } from "lucide-react";
+import { Frown, InfoIcon, Meh, Smile, TrendingDown, TrendingUp } from "lucide-react";
 import { XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer, BarChart, Bar, Tooltip as ChartTooltip } from 'recharts'
 
 export type SentimentsStats = {
@@ -42,7 +41,14 @@ export default function SentimentsCards({ stats }: { stats: SentimentsStats }) {
     const nuPercent = Math.round(neutral / total  * 100)
     const oPercent = Math.round(stats.overall_sentiment_score * 100)
     const data: any[] = [];
-    const { high, low, medium } = stats.sentiment_matrix
+    const emptyCell = { positive: 0, neutral: 0, negative: 0 };
+    const matrix = stats.sentiment_matrix ?? {
+        high: emptyCell,
+        medium: emptyCell,
+        low: emptyCell,
+        explanation: "",
+    };
+    const { high, low, medium } = matrix
 
     data.push({
         priority: 'High',
@@ -108,7 +114,7 @@ export default function SentimentsCards({ stats }: { stats: SentimentsStats }) {
                             <div className="flex flex-col gap-2">
                                 <span className="text-sm text-muted-foreground">Positive</span>
                                 <div className="flex flex-row gap-2 items-center">
-                                    <IconMoodHappy className="size-5 text-success-foreground" />
+                                    <Smile className="size-5 text-success-foreground" />
                                     <span className="font-semibold">{positive}</span>
                                 </div>
                             </div>
@@ -116,7 +122,7 @@ export default function SentimentsCards({ stats }: { stats: SentimentsStats }) {
                             <div className="flex flex-col gap-2">
                                 <span className="text-sm text-muted-foreground">Negative</span>
                                 <div className="flex flex-row gap-2 items-center">
-                                    <IconMoodSad className="size-5 text-destructive-foreground" />
+                                    <Frown className="size-5 text-destructive-foreground" />
                                     <span className="font-semibold">{negative}</span>
                                 </div>
                             </div>
@@ -124,7 +130,7 @@ export default function SentimentsCards({ stats }: { stats: SentimentsStats }) {
                             <div className="flex flex-col gap-2">
                                 <span className="text-sm text-muted-foreground">Neutral</span>
                                 <div className="flex flex-row gap-2 items-center">
-                                    <IconMoodEmpty className="size-5 text-warning-foreground" />
+                                    <Meh className="size-5 text-warning-foreground" />
                                     <span className="font-semibold">{neutral}</span>
                                 </div>
                             </div>
@@ -144,7 +150,7 @@ export default function SentimentsCards({ stats }: { stats: SentimentsStats }) {
                                 <InfoIcon className="size-4" />
                             </TooltipTrigger>
                             <TooltipContent className="max-w-sm">
-                                <p>{stats.sentiment_matrix.explanation}</p>
+                                <p>{stats.sentiment_matrix?.explanation}</p>
                             </TooltipContent>
                         </Tooltip>
                     </CardAction>

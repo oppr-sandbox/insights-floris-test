@@ -9,6 +9,8 @@ export type Insight = {
     topicCode: string;
     topicName: string;
     feedbackCount: number;
+    respondentsCount: number;
+    label: string;
     createdBy: string;
     createdOn: string;
     publishedDate: string;
@@ -43,6 +45,7 @@ export type PromptResponse = {
 export type InsightDetails = {
     id: string;
     status: InsightStatus;
+    label?: string;
     topicId: string;
     topicCode: string;
     topicName: string;

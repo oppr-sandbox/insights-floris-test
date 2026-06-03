@@ -18,7 +18,7 @@ import {
   $isRangeSelection,
   createCommand,
 } from "lexical"
-import { LoaderCircle, MicIcon, Wand2 } from "lucide-react"
+import { LoaderCircle, MicIcon, Square, Wand2 } from "lucide-react"
 
 import { CAN_USE_DOM } from "@/components/editor/shared/can-use-dom"
 import { Button } from "@/components/ui/button"
@@ -31,7 +31,6 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFoo
 import { $createHeadingNode } from "@lexical/rich-text"
 import { $createListItemNode, $createListNode } from "@lexical/list"
 import { Textarea } from "@/components/ui/textarea"
-import { IconPlayerStopFilled } from "@tabler/icons-react"
 import { Spinner } from "@/components/ui/spinner"
 import { toast } from "@/components/ui/sonner"
 import { convertWebMToWavBlob } from "@/utils/helpers/helpers"
@@ -248,7 +247,7 @@ function SpeechToTextWithAiFormatterApiPluginImpl() {
               !isSpeechToText ?
                 <MicIcon className="size-4" />
                 :
-                <IconPlayerStopFilled className="size-4 text-destructive animate-pulse duration-50" />
+                <Square className="size-4 text-destructive animate-pulse duration-50 fill-current" />
               :
               <div className="flex items-center space-x-2">
                 <Spinner variant="circle" />

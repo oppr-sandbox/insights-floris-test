@@ -35,3 +35,18 @@ export function requireRole(user: Doc<"users">, roles: Array<Doc<"users">["role"
     throw new Error("Not authorized");
   }
 }
+
+// OWNER/ADMIN are "managers": they run topics and create insights, and see all
+// company data. MEMBERs only give feedback and view insights.
+export function isManager(user: Doc<"users">): boolean {
+  return user.role === "OWNER" || user.role === "ADMIN";
+}
+
+// Topic-level visibility. Managers see every topic in the company; a MEMBER
+// sees a topic only if they're in its audience (all-users or named) or created
+// it. This is the single rule for who may see a topic's insights/analysis.
+export function canSeeTopic(user: Doc<"users">, topic: Doc<"topics">): boolean {
+  if (isManager(user)) return true;
+  if (topic.userId === user._id) return true;
+  return topic.isAllUsers || (topic.userIds ?? []).includes(user._id);
+}

@@ -3,16 +3,16 @@
 import * as React from "react"
 import {
   AudioWaveform,
-  Bell,
   BookOpen,
   ChartBar,
   Frame,
   GalleryVerticalEnd,
   Home,
   Map,
-  MessageSquareIcon,
   PieChart,
   Settings,
+  SlidersHorizontal,
+  UserRound,
 } from "lucide-react"
 
 import { NavMain } from "@/components/layout/nav-main"
@@ -52,24 +52,19 @@ const data = {
       isActive: true
     },
     {
+      title: "Me",
+      url: "/me",
+      icon: UserRound,
+    },
+    {
       title: "Topics",
       url: "/topics",
       icon: BookOpen
     },
     {
-      title: "My Feedbacks",
-      url: "/feedbacks",
-      icon: MessageSquareIcon
-    },
-    {
       title: "Insights",
       url: "/insights",
       icon: ChartBar,
-    },
-    {
-      title: "Notifications",
-      url: "/notifications",
-      icon: Bell,
     },
   ],
   navSecondary: [
@@ -103,6 +98,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar()
   const { user, allowedPages } = useUserDetails();
   const hasSettingsPage = allowedPages.some(route => route.startsWith('/settings'));
+
+  const managementItems = [
+    ...(hasSettingsPage ? data.navSecondary : []),
+    ...(allowedPages.includes('/config')
+      ? [{ title: "Config", url: "/config", icon: SlidersHorizontal }]
+      : []),
+  ];
 
   const renderUserInfo = () => {
 
@@ -151,7 +153,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain.filter(nav => allowedPages.includes(nav.url))} />
-        {hasSettingsPage && <NavSecondary items={data.navSecondary} grouplabel="Management" />}
+        {managementItems.length > 0 && <NavSecondary items={managementItems} grouplabel="Management" />}
         {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>

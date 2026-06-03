@@ -1,7 +1,6 @@
 "use client"
 
-import { Archive, Lightbulb, Link, MoreVertical, Trash2 } from "lucide-react"
-import { IconPlayerPauseFilled } from "@tabler/icons-react"
+import { Archive, Lightbulb, Link, MoreVertical, Pause, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -42,7 +41,7 @@ export function ItemActions({ topic }: { topic: Topic }) {
                     dispatch({ type: 'CONFIRM_PAUSE', payload: topic })
                 }}>
                 Pause
-                <IconPlayerPauseFilled />
+                <Pause className="fill-current" />
             </DropdownMenuItem>
         )
     }

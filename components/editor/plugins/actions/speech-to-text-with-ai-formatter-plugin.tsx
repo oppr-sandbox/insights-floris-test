@@ -19,7 +19,7 @@ import {
   COMMAND_PRIORITY_EDITOR,
   createCommand,
 } from "lexical"
-import { LoaderCircle, MicIcon } from "lucide-react"
+import { LoaderCircle, MicIcon, Square } from "lucide-react"
 
 import { useReport } from "@/components/editor/editor-hooks/use-report"
 import { CAN_USE_DOM } from "@/components/editor/shared/can-use-dom"
@@ -33,7 +33,6 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFoo
 import { $createHeadingNode } from "@lexical/rich-text"
 import { $createListItemNode, $createListNode } from "@lexical/list"
 import { Textarea } from "@/components/ui/textarea"
-import { IconPlayerStopFilled } from "@tabler/icons-react"
 import { useUserDetails } from "@/providers/UserContextProvider"
 
 export const SPEECH_TO_TEXT_COMMAND: LexicalCommand<boolean> = createCommand(
@@ -247,7 +246,7 @@ function SpeechToTextWithAiFormatterPluginImpl() {
             {!isSpeechToText ?
               <MicIcon className="size-4" />
               :
-              <IconPlayerStopFilled className="size-4 text-destructive" />
+              <Square className="size-4 text-destructive fill-current" />
             }
           </Button>
         </TooltipTrigger>

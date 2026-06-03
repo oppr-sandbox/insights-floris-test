@@ -3,14 +3,7 @@ import {
   nextjsMiddlewareRedirect,
 } from "@convex-dev/auth/nextjs/server";
 
-const PUBLIC_ROUTES = [
-  "login",
-  "invite",
-  "accept-invite",
-  "reset-password",
-  "forgot-password",
-  "not-found",
-];
+const PUBLIC_ROUTES = ["login", "invite", "accept-invite", "not-found"];
 
 // Single-tenant sandbox: the seeded company slug. Used to route the bare root.
 const DEFAULT_TENANT = "oppr";

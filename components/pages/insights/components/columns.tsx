@@ -2,6 +2,8 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 
+import { Tag } from "lucide-react"
+
 import { Badge } from "@/components/ui/badge"
 import { DataTableColumnHeaderSort } from "@/components/data-table/data-table-column-header"
 
@@ -39,6 +41,12 @@ export const allInsightsColumns: ColumnDef<Insight>[] = [
           <div className="font-medium">
             {row.original.topicName}
           </div>
+          {row.original.label && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground italic">
+              <Tag className="size-3" />
+              {row.original.label}
+            </div>
+          )}
         </div>
       )
     },

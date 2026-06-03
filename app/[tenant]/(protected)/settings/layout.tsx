@@ -2,7 +2,7 @@
 
 import { NavSecondary } from "@/components/layout/nav-secondary";
 import { useUserDetails } from "@/providers/UserContextProvider";
-import { Building2, CreditCard, Hash, Users } from "lucide-react";
+import { Building2, CreditCard, Hash, Map, Users } from "lucide-react";
 
 export default function SettingsLayout({
   children,
@@ -32,6 +32,11 @@ export default function SettingsLayout({
         title: "Billing",
         url: "/settings/billing",
         icon: CreditCard,
+      },
+      {
+        title: "Roadmap",
+        url: "/settings/roadmap",
+        icon: Map,
       },
     ],
   };

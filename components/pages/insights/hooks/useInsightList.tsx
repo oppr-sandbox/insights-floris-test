@@ -13,12 +13,14 @@ type State = {
     selectedInsight: Insight | undefined;
     showConfirmDelete: boolean;
     showConfirmPublish: boolean;
+    editNoteMode: boolean;
 }
 
 type Action =
     | { type: 'CONFIRM_DELETE'; payload: Insight }
     | { type: 'CONFIRM_DELETE_CLOSE'; }
     | { type: 'CONFIRM_PUBLISH'; payload: Insight }
+    | { type: 'EDIT_NOTE'; payload: Insight }
     | { type: 'CONFIRM_PUBLISH_CLOSE'; }
 
 const reducer = (state: State, action: Action): State => {
@@ -28,9 +30,11 @@ const reducer = (state: State, action: Action): State => {
         case 'CONFIRM_DELETE_CLOSE':
             return { ...state, showConfirmDelete: false };
         case 'CONFIRM_PUBLISH':
-            return { ...state, selectedInsight: action.payload, showConfirmPublish: true };
+            return { ...state, selectedInsight: action.payload, showConfirmPublish: true, editNoteMode: false };
+        case 'EDIT_NOTE':
+            return { ...state, selectedInsight: action.payload, showConfirmPublish: true, editNoteMode: true };
         case 'CONFIRM_PUBLISH_CLOSE':
-            return { ...state, showConfirmPublish: false };
+            return { ...state, showConfirmPublish: false, editNoteMode: false };
         default:
             return state;
     }
@@ -40,6 +44,7 @@ const initialState: State = {
     selectedInsight: undefined,
     showConfirmDelete: false,
     showConfirmPublish: false,
+    editNoteMode: false,
 };
 
 type TopicListContextType = {
@@ -52,7 +57,9 @@ type TopicListContextType = {
     refetch: () => void;
     handleRowClick: (row: Row<Insight>) => void;
     handleDeleteInsight: () => void;
-    handlePublishInsight: () => void;
+    handlePublishInsight: (label?: string) => void;
+    handleSaveNote: (label: string) => void;
+    handleRegenerateInsight: (insight: Insight) => void;
 } & State;
 
 const InsightListContext = createContext<TopicListContextType | undefined>(undefined);
@@ -76,8 +83,36 @@ export const InsightListProvider = ({ children }: { children: ReactNode }) => {
 
     const deleteInsight = useMutation(api.insights.remove);
     const publishInsight = useMutation(api.insights.publish);
+    const updateLabel = useMutation(api.insights.updateLabel);
+    const regenerateInsight = useMutation(api.insights.regenerate);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isPublishing, setIsPublishing] = useState(false);
+
+    const handleSaveNote = async (label: string) => {
+        setIsPublishing(true);
+        try {
+            await updateLabel({ id: state.selectedInsight!.id as Id<"insights">, label });
+            toast.success('Note saved', { description: 'The insight tag has been updated.' });
+            dispatch({ type: 'CONFIRM_PUBLISH_CLOSE' });
+        } catch (e) {
+            toast.error('Failed to save note', { description: e instanceof Error ? e.message : undefined });
+        } finally {
+            setIsPublishing(false);
+        }
+    }
+
+    const handleRegenerateInsight = async (insight: Insight) => {
+        try {
+            await regenerateInsight({ id: insight.id as Id<"insights"> });
+            posthog.capture('insight_regenerated', {
+                insight_id: insight.id,
+                insight_code: insight.insightCode,
+            });
+            toast.success('Regenerating insight', { description: 'Generation has been restarted.' });
+        } catch (e) {
+            toast.error('Failed to regenerate insight', { description: e instanceof Error ? e.message : undefined });
+        }
+    }
 
     const handleDeleteInsight = async () => {
         setIsDeleting(true);
@@ -96,10 +131,10 @@ export const InsightListProvider = ({ children }: { children: ReactNode }) => {
         }
     }
 
-    const handlePublishInsight = async () => {
+    const handlePublishInsight = async (label?: string) => {
         setIsPublishing(true);
         try {
-            await publishInsight({ id: state.selectedInsight!.id as Id<"insights"> });
+            await publishInsight({ id: state.selectedInsight!.id as Id<"insights">, label });
             posthog.capture('insight_published', {
                 insight_id: state.selectedInsight?.id,
                 insight_code: state.selectedInsight?.insightCode,
@@ -124,6 +159,8 @@ export const InsightListProvider = ({ children }: { children: ReactNode }) => {
             dispatch,
             handleDeleteInsight,
             handlePublishInsight,
+            handleSaveNote,
+            handleRegenerateInsight,
             handleRowClick,
             refetch
         }}>

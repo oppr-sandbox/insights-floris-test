@@ -2,8 +2,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { TabsContent } from "@/components/ui/tabs";
-import { IconBulb } from "@tabler/icons-react";
-import { Users } from "lucide-react";
+import { Users, Lightbulb } from "lucide-react";
 import { SaveFieldType, useTopicDetail } from "../hooks/useTopicDetail";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "convex/react";
@@ -301,7 +300,7 @@ export default function UserAccess() {
                 <Alert variant="warning">
                     <AlertTitle>
                         <div className="flex flex-row items-center space-x-1">
-                            <IconBulb className="size-6" />
+                            <Lightbulb className="size-6" />
                             <h5>Access Tips:</h5>
                         </div>
                     </AlertTitle>

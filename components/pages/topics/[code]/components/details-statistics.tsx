@@ -3,7 +3,6 @@
 import { TabsContent } from "@/components/ui/tabs";
 import { useTopicDetail } from "../hooks/useTopicDetail";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { IconFileText } from "@tabler/icons-react";
 import { Calendar, ChartColumn, Clock, FileText, Image, Mic, UserRoundPen, Users } from "lucide-react";
 import { formatDate } from "@/utils/helpers/helpers";
 import { TopicChannels, TopicDetail, TopicRespondents, TopicStatistics } from "../../data/schema";
@@ -55,7 +54,7 @@ function StatsOverview({ data, stats }: { data?: TopicDetail, stats: TopicStatis
             <Card className="py-5 px-1 gap-2">
                 <CardHeader>
                     <CardTitle className="flex gap-2 items-center">
-                        <IconFileText /> <span className="text-lg">Topic Overview</span>
+                        <FileText /> <span className="text-lg">Topic Overview</span>
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="flex-1">

@@ -23,8 +23,7 @@ import {
 	AlertDialogAction,
 } from '@/components/ui/alert-dialog'
 import { useQueryClient } from "@tanstack/react-query";
-import { IconPlayerPauseFilled } from "@tabler/icons-react";
-import { Link } from "lucide-react";
+import { Link, Pause } from "lucide-react";
 import { toast } from "@/components/ui/sonner";
 import { setQueryParam } from "@/utils/helpers/helpers";
 import { useUserDetails } from "@/providers/UserContextProvider";
@@ -146,7 +145,7 @@ const ViewHeader = ({ onPause, onEdit, onPublish, }: { onPause: () => void, onEd
 						Copy link
 					</Button>
 					<Button variant="outline" onClick={onPause} size="sm" className="items-center" disabled={!hasActiveSubscription || isPausing}>
-						<IconPlayerPauseFilled className="size-3" />
+						<Pause className="size-3 fill-current" />
 						Pause
 					</Button>
 				</>

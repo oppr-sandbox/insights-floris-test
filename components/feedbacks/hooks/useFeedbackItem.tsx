@@ -1,6 +1,6 @@
 import { QueryObserverResult, RefetchOptions, useQuery } from "@tanstack/react-query";
 import { FeedbackItemProps } from "../feedbacks";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useUserDetails } from "@/providers/UserContextProvider";
 
 export type Translation = {
@@ -16,8 +16,6 @@ export const useFeedbackItem = (feedback: FeedbackItemProps) => {
     const [showText, setShowText] = useState<boolean>(false);
     const [showTranscript, setShowTranscript] = useState<boolean>(false);
 
-    const [isPaused, setIsPaused] = useState(true);
-    const [isAudioEnded, setIsAudioEnded] = useState(true);
     // Query for translating the written text
     const {
         data: textTranslation,
@@ -92,46 +90,6 @@ export const useFeedbackItem = (feedback: FeedbackItemProps) => {
         if (!transcript.isTranslated) await transcript.translate();
     }
 
-    const playAudio = (audio: HTMLAudioElement | null) => {
-        if (audio) {
-            setIsPaused(false);
-            if (isAudioEnded) {
-                audio.currentTime = 0;
-                setIsAudioEnded(false);
-            }
-            audio.play();
-        }
-    };
-
-    const pauseAudio = (audio: HTMLAudioElement | null) => {
-        if (audio) {
-            setIsPaused(true);
-            audio.pause();
-        }
-    };
-
-    const replayAudio = (audio: HTMLAudioElement | null) => {
-        if (audio) {
-            audio.currentTime = 0;
-        }
-    }
-
-    const onAudioEnded = () => {
-        setIsPaused(true);
-        setIsAudioEnded(true);
-    }
-
-    const formatTime = (duration: number | null | undefined): string => {
-        if (!duration || duration <= 0 || isNaN(duration)) return "0s";
-
-        const minutes = Math.floor(duration / 60);
-        const seconds = Math.floor(duration % 60);
-
-        if (minutes === 0) return `${seconds}s`;
-        if (seconds === 0) return `${minutes}m`;
-        return `${minutes}m ${seconds}s`;
-    };
-
     const transcript: Translation = {
         translation: transcriptTranslation,
         translate: translateTranscript,
@@ -145,12 +103,5 @@ export const useFeedbackItem = (feedback: FeedbackItemProps) => {
         showText,
         transcript,
         showTranscript,
-
-        isPaused,
-        playAudio,
-        pauseAudio,
-        replayAudio,
-        onAudioEnded,
-        formatTime,
     }
 }

@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { type Icon } from "@tabler/icons-react"
 
 import {
   SidebarGroup,
@@ -30,6 +29,11 @@ export function NavSecondary({
   const pathname = usePathname();
   const { tenant } = useUserDetails();
 
+  const isActive = (url: string) => {
+    const full = `/${tenant}${url}`
+    return pathname === full || pathname.startsWith(`${full}/`)
+  }
+
   return (
     <SidebarGroup {...props}>
       {props.grouplabel && <SidebarGroupLabel>{props.grouplabel}</SidebarGroupLabel>}
@@ -37,7 +41,7 @@ export function NavSecondary({
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild isActive={pathname.startsWith(item.url)}>
+              <SidebarMenuButton asChild isActive={isActive(item.url)}>
                 <Link href={`/${tenant}${item.url}`}>
                   <item.icon />
                   <span>{item.title}</span>

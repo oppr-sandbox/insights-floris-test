@@ -34,7 +34,10 @@ export default function RootLayout({
           <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
           <link rel="apple-touch-icon" href="/apple-touch-icon.png" type="image/png" sizes="any" />
         </head>
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <body
+          suppressHydrationWarning
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        >
           <ConvexClientProvider>
             <ReactQueryProvider>
               <ThemeProvider

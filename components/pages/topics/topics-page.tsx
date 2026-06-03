@@ -6,8 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation"
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
-import { Search } from "lucide-react"
-import { IconGridDots, IconList, IconPlus } from "@tabler/icons-react"
+import { LayoutGrid, List, Plus, Search } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -110,7 +109,7 @@ export default function TopicsPage() {
                                     description={renderWarningMessage(inactiveCount)}
                                         triggerButton={
                                         <Button>
-                                            <IconPlus />
+                                            <Plus />
                                             Create New Topic
                                         </Button>
                                     }
@@ -119,7 +118,7 @@ export default function TopicsPage() {
                                 />
                             ) : (
                                 <Button onClick={handleClick}>
-                                    <IconPlus />
+                                    <Plus />
                                     Create New Topic
                                 </Button>
                             )
@@ -162,11 +161,11 @@ export default function TopicsPage() {
                             <div className="bg-light-grey rounded-lg p-1">
                                 <TabsList>
                                     <TabsTrigger value="cards">
-                                        <IconGridDots />
+                                        <LayoutGrid />
                                         Cards
                                     </TabsTrigger>
                                     <TabsTrigger value="table">
-                                        <IconList />
+                                        <List />
                                         Table
                                     </TabsTrigger>
                                 </TabsList>

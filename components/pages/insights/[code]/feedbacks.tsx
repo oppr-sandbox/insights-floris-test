@@ -24,11 +24,13 @@ export default function Feedbacks({ insightId }: { insightId: string }) {
     const mapToFeedbackModel = (feedback: TopicFeedback) => {
         const mappedData: FeedbackItemProps = {
             id: feedback.id,
+            sentiment: feedback.sentiment,
             submittedBy: {
                 name: feedback.user.displayName!,
                 image: feedback.user.userImage!,
                 initials: feedback.user.initials,
-                position: ''
+                position: '',
+                role: feedback.user.discipline,
             },
             text: feedback.text,
             textLangCode: feedback.textLangCode,
@@ -39,7 +41,7 @@ export default function Feedbacks({ insightId }: { insightId: string }) {
                     transcribedText: feedback.transcribedText!,
                     transcribedTextLangCode: feedback.transcribedTextLangCode
                 } : undefined,
-            images: feedback.imageFiles ? feedback.imageFiles.map(image => ({ url: image.url })) : undefined
+            images: feedback.imageFiles?.length ? feedback.imageFiles.map(image => ({ url: image.url })) : undefined
         }
 
         return mappedData;

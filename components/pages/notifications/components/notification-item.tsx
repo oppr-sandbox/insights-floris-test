@@ -66,7 +66,7 @@ export default function NotificationItem({ notification, selectedNotifications, 
                                         checked={selectedNotifications.includes(notification.id)}
                                         onCheckedChange={() => setSelected(notification.id)} />
 
-                                    <div className="rounded-md p-2.5 md:p-4 bg-tertiary/20">
+                                    <div className="rounded-md p-2.5 bg-tertiary/20 text-tertiary-foreground">
                                         {notificationIcon[notification.type]}
                                     </div>
                                     <CardDescription className="flex items-center gap-2 text-muted-foreground">
@@ -111,7 +111,7 @@ export default function NotificationItem({ notification, selectedNotifications, 
                             checked={selectedNotifications.includes(notification.id)}
                             onCheckedChange={() => setSelected(notification.id)} />
 
-                        <div className="rounded-md p-4 bg-tertiary/20">
+                        <div className="rounded-md p-2.5 bg-tertiary/20 text-tertiary-foreground">
                             {notificationIcon[notification.type]}
                         </div>
 

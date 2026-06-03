@@ -69,6 +69,13 @@ export function formatDate(date: Date | string | undefined): string {
   return moment(date).format('DD-MMM-YYYY');
 }
 
+export function formatDateTime(date: Date | string | undefined): string {
+  if (!date)
+    return '';
+
+  return moment(date).format('DD-MMM-YYYY · HH:mm');
+}
+
 export function formattedRemainingDays(date: Date | string | undefined) : string {
   const noOfDays = remainingDays(date);
 

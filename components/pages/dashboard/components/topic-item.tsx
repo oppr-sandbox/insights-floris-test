@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardDescription, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { IconClock } from "@tabler/icons-react";
+import { Clock } from "lucide-react";
 import { Topic } from "../data/schema";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +39,7 @@ export default function TopicItem(topic: Topic) {
                             Active
                         </Badge>
                         <div className="flex items-center gap-1">
-                            <IconClock size={14} />
+                            <Clock className="size-3.5" />
                             <span className="text-xs">{renderRemainingDays()}</span>
                         </div>
                     </div>

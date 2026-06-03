@@ -1,4 +1,4 @@
-import { IconMessage, IconBulb, IconArrowRight } from "@tabler/icons-react"
+import { MessageSquare, Lightbulb, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { renderMarkdownTemplate } from "@/utils/renderMarkdownTemplate"
 import { Activity } from "../data/schema"
@@ -9,14 +9,14 @@ export default function ActivityItem({ activity }: { activity: Activity }) {
         if (type === 'submitted-feedback') {
             return (
                 <div className="p-2 bg-primary/10 rounded-md flex-shrink-0">
-                    <IconMessage className="text-primary size-5" />
+                    <MessageSquare className="text-primary size-5" />
                 </div>
             )
         }
         else {
             return (
                 <div className="p-2 bg-warning/20 rounded-md flex-shrink-0">
-                    <IconBulb className="text-warning size-5" />
+                    <Lightbulb className="text-warning size-5" />
                 </div>
             )
         }
@@ -34,7 +34,7 @@ export default function ActivityItem({ activity }: { activity: Activity }) {
                 </div>
             </div>
             <Button variant="outline" size="icon" className="size-5">
-                <IconArrowRight />
+                <ArrowRight />
             </Button>
         </div>
     )

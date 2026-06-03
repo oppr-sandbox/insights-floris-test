@@ -20,8 +20,8 @@ export default function FindingsCards({ stats }: { stats: FindingsStats }) {
                         {stats.totalFindings}
                     </CardTitle>
                     <CardAction>
-                        <div className="rounded-md p-4 bg-warning/20">
-                            <Lightbulb />
+                        <div className="rounded-md p-2.5 bg-warning/20">
+                            <Lightbulb className="text-warning-foreground size-5" />
                         </div>
                     </CardAction>
                 </CardHeader>
@@ -35,8 +35,8 @@ export default function FindingsCards({ stats }: { stats: FindingsStats }) {
                         {stats.highPriority}
                     </CardTitle>
                     <CardAction>
-                        <div className="rounded-md p-4 bg-destructive/20">
-                            <CircleAlert />
+                        <div className="rounded-md p-2.5 bg-destructive/20">
+                            <CircleAlert className="text-destructive-foreground size-5" />
                         </div>
                     </CardAction>
                 </CardHeader>
@@ -50,8 +50,8 @@ export default function FindingsCards({ stats }: { stats: FindingsStats }) {
                         {stats.highImpact}
                     </CardTitle>
                     <CardAction>
-                        <div className="rounded-md p-4 bg-success/20">
-                            <TrendingUp />
+                        <div className="rounded-md p-2.5 bg-success/20">
+                            <TrendingUp className="text-success-foreground size-5" />
                         </div>
                     </CardAction>
                 </CardHeader>

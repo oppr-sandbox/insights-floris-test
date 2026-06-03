@@ -15,8 +15,8 @@ export default function NotificationCards({ notificationStats }: { notificationS
                         {notificationStats.total}
                     </CardTitle>
                     <CardAction>
-                        <div className="rounded-md p-4 bg-tertiary/20">
-                            <Bell />
+                        <div className="rounded-md p-2.5 bg-tertiary/20">
+                            <Bell className="text-tertiary-foreground size-5" />
                         </div>
                     </CardAction>
                 </CardHeader>
@@ -30,8 +30,8 @@ export default function NotificationCards({ notificationStats }: { notificationS
                         {notificationStats.unread}
                     </CardTitle>
                     <CardAction>
-                        <div className="rounded-md p-4 bg-warning/20">
-                            <Clock />
+                        <div className="rounded-md p-2.5 bg-warning/20">
+                            <Clock className="text-warning-foreground size-5" />
                         </div>
                     </CardAction>
                 </CardHeader>
@@ -45,8 +45,8 @@ export default function NotificationCards({ notificationStats }: { notificationS
                         {notificationStats.today}
                     </CardTitle>
                     <CardAction>
-                        <div className="rounded-md p-4 bg-success/20">
-                            <TrendingUp />
+                        <div className="rounded-md p-2.5 bg-success/20">
+                            <TrendingUp className="text-success-foreground size-5" />
                         </div>
                     </CardAction>
                 </CardHeader>
@@ -60,8 +60,8 @@ export default function NotificationCards({ notificationStats }: { notificationS
                         {notificationStats.responseRate ? `${(notificationStats.responseRate * 100)}%` : '-'}
                     </CardTitle>
                     <CardAction>
-                        <div className="rounded-md p-4 bg-primary/40">
-                            <CircleCheck />
+                        <div className="rounded-md p-2.5 bg-primary/20">
+                            <CircleCheck className="text-primary size-5" />
                         </div>
                     </CardAction>
                 </CardHeader>

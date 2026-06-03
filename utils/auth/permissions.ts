@@ -6,6 +6,7 @@ export const permissions: Record<string, string[]> = {
 
 export const protectedRoutes = [
   "/dashboard",
+  "/me",
   "/topics",
   "/feedbacks",
   "/insights",
@@ -14,11 +15,14 @@ export const protectedRoutes = [
   "/settings/users",
   "/settings/naming-conventions",
   "/settings/billing",
+  "/settings/roadmap",
+  "/config",
 ];
 
 export const routePermissions: Record<string, string[]> = {
   OWNER: [
     "/dashboard",
+    "/me",
     "/topics",
     "/feedbacks",
     "/insights",
@@ -27,9 +31,12 @@ export const routePermissions: Record<string, string[]> = {
     "/settings/users",
     "/settings/naming-conventions",
     "/settings/billing",
+    "/settings/roadmap",
+    "/config",
   ],
   ADMIN: [
     "/dashboard",
+    "/me",
     "/topics",
     "/feedbacks",
     "/insights",
@@ -37,6 +44,8 @@ export const routePermissions: Record<string, string[]> = {
     "/settings/users",
     "/settings/naming-conventions",
     "/settings/billing",
+    "/settings/roadmap",
+    "/config",
   ],
-  MEMBER: ["/dashboard", "/feedbacks", "/insights", "/notifications"],
+  MEMBER: ["/dashboard", "/me", "/feedbacks", "/insights", "/notifications"],
 };

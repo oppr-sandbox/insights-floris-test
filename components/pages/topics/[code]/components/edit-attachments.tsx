@@ -11,14 +11,17 @@ import {
   useDropzone,
 } from "@/components/ui/dropzone";
 import { TabsContent } from "@/components/ui/tabs";
-import { IconBulb } from "@tabler/icons-react";
-import { CloudCheck, Download, FileText, LoaderCircle, RotateCcwIcon, UploadIcon } from "lucide-react";
+import { CloudCheck, Download, FileText, LoaderCircle, RotateCcwIcon, UploadIcon, Lightbulb } from "lucide-react";
 import { TopicAttachmentForm } from "../../data/schema";
 import { useTopicDetail } from "../hooks/useTopicDetail";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/sonner";
+import { KnowledgeStatus } from "@/components/attachments/knowledge-status";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import Image from "next/image";
 
 type AttachmentFile = {
@@ -49,7 +52,14 @@ async function urlToBlob(url: string) {
 
 export default function Attachments() {
   const { data, isLoading, uploadAttachments } = useTopicDetail();
+  const reparse = useMutation(api.ingestion.reparse);
   const isFirstLoad = useRef(true);
+
+  // Live ingestion status keyed by filename — the dropzone keeps its own local
+  // file list, so we look the parse state up from the reactive topic data.
+  const ingestByName = new Map(
+    (data?.topicAttachments ?? []).map((a) => [a.fileName, { id: a.id, status: a.parseStatus }]),
+  );
 
   const [files, setFiles] = useState<AttachmentFile[]>([]);
   const uploadedSet = useRef<Set<string>>(new Set());
@@ -374,6 +384,18 @@ export default function Attachments() {
                     <p>{((file.file?.size ?? 0) / (1024 * 1024)).toFixed(2)} MB</p>
                     <DropzoneFileMessage />
                   </div>
+                  {(() => {
+                    const meta = ingestByName.get(file.fileName);
+                    if (!meta?.status) return null;
+                    return (
+                      <div className="mt-1">
+                        <KnowledgeStatus
+                          status={meta.status}
+                          onRetry={() => reparse({ fileId: meta.id as Id<"files"> })}
+                        />
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             ))}
@@ -382,7 +404,7 @@ export default function Attachments() {
         <Alert variant="info">
           <AlertTitle>
             <div className="flex flex-row items-center space-x-1">
-              <IconBulb className="size-6" />
+              <Lightbulb className="size-6" />
               <h5>Attachment Tips:</h5>
             </div>
           </AlertTitle>

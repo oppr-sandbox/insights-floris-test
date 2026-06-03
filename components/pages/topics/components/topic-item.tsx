@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardAction, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { IconCalendar, IconChartBar, IconMessage, IconUsers } from "@tabler/icons-react";
+import { Calendar, ChartBar, MessageSquare, Users } from "lucide-react";
 import { Topic, TopicStatus } from "../data/schema";
 import { channels, statuses } from "../data/data";
 import Link from "next/link";
@@ -61,7 +61,7 @@ export default function TopicItem({ topic }: TopicItemProps) {
                     {/* Respondents */}
                     <div className="flex items-center justify-between space-x-2">
                         <div className="flex items-center space-x-2">
-                            <IconUsers size="12" />
+                            <Users size="12" />
                             <p className="text-xs text-muted-foreground">Respondents</p>
                         </div>
                         <div className="flex space-x-2 items-center">
@@ -87,7 +87,7 @@ export default function TopicItem({ topic }: TopicItemProps) {
 
                     <div className="flex items-center justify-between space-x-2">
                         <div className="flex items-center space-x-2">
-                            <IconCalendar size="12" />
+                            <Calendar size="12" />
                             <p className="text-xs text-muted-foreground">Due</p>
                         </div>
                         <p className="text-xs text-foreground font-semibold">{formatDate(topic.endDate)}</p>
@@ -97,7 +97,7 @@ export default function TopicItem({ topic }: TopicItemProps) {
                         topic.status !== TopicStatus.Completed && (
                             <div className="flex items-center justify-between space-x-2">
                                 <div className="flex items-center space-x-2">
-                                    <IconCalendar size="12" />
+                                    <Calendar size="12" />
                                     <p className="text-xs text-muted-foreground">No. of Days Till Due</p>
                                 </div>
                                 <p className="text-xs text-foreground font-semibold">{formattedRemainingDays(topic.endDate)}</p>
@@ -107,7 +107,7 @@ export default function TopicItem({ topic }: TopicItemProps) {
 
                     <div className="flex items-center justify-between space-x-2">
                         <div className="flex items-center space-x-2">
-                            <IconMessage size="12" />
+                            <MessageSquare size="12" />
                             <p className="text-xs text-muted-foreground">Channels</p>
                         </div>
                         <div className="flex space-x-2">
@@ -128,7 +128,7 @@ export default function TopicItem({ topic }: TopicItemProps) {
                         topic.status === 'ACTIVE' && (
                             <div className="flex flex-col space-y-2">
                                 <div className="flex items-center space-x-2">
-                                    <IconChartBar size="12" />
+                                    <ChartBar size="12" />
                                     <div className="flex flex-1 justify-between">
                                         <p className="text-xs text-muted-foreground">Participation</p>
                                         <p className="text-xs text-foreground font-semibold">{percentage}%</p>
@@ -148,7 +148,7 @@ export default function TopicItem({ topic }: TopicItemProps) {
                     {
                         topic.status === 'COMPLETED' && (
                             <div className="flex items-center space-x-2">
-                                <IconChartBar size="12" className="text-success-foreground" />
+                                <ChartBar size="12" className="text-success-foreground" />
                                 <span className="text-xs font-semibold text-success-foreground">Completed</span>
                                 <div className="text-xs text-muted-foreground">
                                     <span>

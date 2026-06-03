@@ -7,8 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search } from "lucide-react"
-import { IconChecklist, IconPlus } from "@tabler/icons-react"
+import { ListChecks, Plus, Search } from "lucide-react"
 import { debounce } from "@/utils/helpers/helpers"
 import AssignedTopics from "@/components/pages/feedbacks/components/assigned-topics"
 import MyFeedbacks from "@/components/pages/feedbacks/components/my-feedbacks"
@@ -116,11 +115,11 @@ function ManagerFeedbacksPage() {
                             {/*  className="w-full grid grid-cols-2" */}
                             <TabsList>
                                 <TabsTrigger value="assigned-topics" className="flex items-center">
-                                    <IconPlus />
+                                    <Plus />
                                     Assigned Topics
                                 </TabsTrigger>
                                 <TabsTrigger value="my-feedbacks" className="flex items-center">
-                                    <IconChecklist />
+                                    <ListChecks />
                                     My Feedbacks
                                 </TabsTrigger>
                             </TabsList>

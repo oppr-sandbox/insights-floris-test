@@ -8,17 +8,18 @@ import Loading from "./loading";
 import NotFound from "./not-found";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Overview from "./overview";
-import Chat from "./chat";
 import { Badge } from "@/components/ui/badge";
 import { statuses } from "../data/data";
 import { EmptyState } from "@/components/ui/empty-state";
-import { BarChart2, Lightbulb, Loader, MessageSquare, Text, TrendingUp, TriangleAlert, TriangleAlertIcon } from "lucide-react";
+import { BarChart2, Lightbulb, Loader, Text, TrendingUp, TriangleAlert } from "lucide-react";
 import { useEffect } from "react";
 import Summary from "./summary";
 import Sentiments from "./sentiments";
 import Contradictions from "./contradictions";
 import Lessons from "./lessons";
 import { FeedbackPreviewProvider } from "../hooks/useFeedbackPreview";
+import InsightActions from "./insight-actions";
+import TalkAboutInsight from "./talk-button";
 import posthog from "posthog-js";
 
 export default function Details({ code }: { code: string }) {
@@ -70,7 +71,7 @@ export default function Details({ code }: { code: string }) {
             return (
                 <Tabs defaultValue="overview">
                     <div className="sticky top-28 bg-background z-50 py-2 px-4">
-                        <TabsList className="w-full grid grid-cols-3 lg:grid-cols-6 h-auto p-1">
+                        <TabsList className="w-full grid grid-cols-3 lg:grid-cols-5 h-auto p-1">
                             <TabsTrigger value="overview">
                                 <Text /> Overview
                             </TabsTrigger>
@@ -86,9 +87,6 @@ export default function Details({ code }: { code: string }) {
                             <TabsTrigger value="lessons">
                                 <Lightbulb /> Findings
                             </TabsTrigger>
-                            <TabsTrigger value="chat">
-                                <MessageSquare /> Talk With
-                            </TabsTrigger>
                         </TabsList>
                     </div>
                     <div className="px-4">
@@ -98,7 +96,6 @@ export default function Details({ code }: { code: string }) {
                             <Sentiments insightDetails={insightDetails} />
                             <Contradictions insightDetails={insightDetails} />
                             <Lessons insightDetails={insightDetails} />
-                            <Chat insight={insightDetails} initialState={promptBuilder} />
                         </FeedbackPreviewProvider>
                     </div>
                 </Tabs>
@@ -125,6 +122,14 @@ export default function Details({ code }: { code: string }) {
                 </div>
                 {/* Button Group */}
                 <div className="flex flex-1 flex-row space-x-2 items-center justify-end">
+                    {insightDetails.status !== "GENERATING" &&
+                        <TalkAboutInsight insightId={insightDetails.id} topicId={insightDetails.topicId} />
+                    }
+                    <InsightActions
+                        insightId={insightDetails.id}
+                        status={insightDetails.status}
+                        label={insightDetails.label}
+                    />
                 </div>
             </div>
             {renderContent()}

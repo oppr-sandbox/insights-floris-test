@@ -3,11 +3,10 @@
 import { TabsContent } from "@/components/ui/tabs";
 import { useTopicDetail } from "../hooks/useTopicDetail";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { IconFileText } from "@tabler/icons-react";
 import { useMemo, useState } from "react";
 import { SerializedEditorState, SerializedLexicalNode, SerializedRootNode } from "lexical";
 import { ReadonlyEditor } from "@/components/editor/blocks/readonly-editor/editor";
-import { File, Type, Text } from "lucide-react";
+import { File, Type, Text, FileText } from "lucide-react";
 import AttachmentCard, { AttachmentData } from "@/components/attachments/attachment-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ImageCarouselModal } from "@/components/attachments/attachment-preview";
@@ -79,7 +78,7 @@ export default function Contents() {
                 <Card className="py-5 px-1 gap-2">
                     <CardContent className="flex flex-col flex-1 gap-2">
                         <h3 className="flex items-center gap-1 text-sm font-semibold text-muted-foreground">
-                            <IconFileText className="size-4" /><span>Description</span>
+                            <FileText className="size-4" /><span>Description</span>
                         </h3>
                         <div className="text-dark-grey">
                             <p className="text-body text-dark-grey leading-relaxed whitespace-pre-wrap">{data!.description}</p>

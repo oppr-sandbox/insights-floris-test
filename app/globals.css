@@ -184,3 +184,29 @@ input[type="password"]::-ms-reveal {
 input[type="password"]::-moz-password-reveal {
   display: none;
 }
+
+/* Topic report printing: show only #topic-report, hide the rest of the app. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #topic-report,
+  #topic-report *,
+  #analysis-report,
+  #analysis-report * {
+    visibility: visible;
+  }
+  #topic-report,
+  #analysis-report {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  #topic-report img,
+  #analysis-report img {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}

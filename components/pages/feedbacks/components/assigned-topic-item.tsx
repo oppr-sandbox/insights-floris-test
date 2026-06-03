@@ -1,10 +1,9 @@
 'use client'
 
-import { MessageSquare } from "lucide-react";
+import { Calendar, ChartBar, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardAction } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { IconCalendar, IconChartBar, IconMessage } from "@tabler/icons-react";
 
 import { formatDate, remainingDays } from "@/utils/helpers/helpers";
 import { cn } from "@/lib/utils";
@@ -61,7 +60,7 @@ export default function AssignedTopicItem({ topic, onClick } : TopicItemProps) {
 
                     <div className="flex items-center justify-between space-x-2">
                         <div className="flex items-center space-x-2">
-                            <IconCalendar size="12" />
+                            <Calendar size="12" />
                             <p className="text-xs text-muted-foreground">Timeline</p>
                         </div>
                         <p className="text-xs text-foreground font-semibold">{formatDate(topic.startDate)} - {formatDate(topic.endDate)}</p>
@@ -69,7 +68,7 @@ export default function AssignedTopicItem({ topic, onClick } : TopicItemProps) {
 
                     <div className="flex items-center justify-between space-x-2">
                         <div className="flex items-center space-x-2">
-                            <IconCalendar size="12" />
+                            <Calendar size="12" />
                             <p className="text-xs text-muted-foreground">No. of Days Till Due</p>
                         </div>
                         {renderRemainingDays()}
@@ -77,7 +76,7 @@ export default function AssignedTopicItem({ topic, onClick } : TopicItemProps) {
 
                     <div className="flex items-center justify-between space-x-2">
                         <div className="flex items-center space-x-2">
-                            <IconMessage size="12" />
+                            <MessageSquare size="12" />
                             <p className="text-xs text-muted-foreground">Channels</p>
                         </div>
                         <div className="flex space-x-2">
@@ -96,7 +95,7 @@ export default function AssignedTopicItem({ topic, onClick } : TopicItemProps) {
 
                     <div className="flex flex-col space-y-2">
                         <div className="flex items-center space-x-2">
-                            <IconChartBar size="12" />
+                            <ChartBar size="12" />
                             <div className="flex flex-1 justify-between">
                                 <p className="text-xs text-muted-foreground">Participation</p>
                                 <p className="text-xs text-foreground font-semibold">{percentage}%</p>

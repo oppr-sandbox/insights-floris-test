@@ -1,5 +1,5 @@
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { IconChecklist, IconBulb } from "@tabler/icons-react";
+import { ListChecks, Lightbulb } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Stats } from "../data/schema";
@@ -27,8 +27,8 @@ export default function SectionCards() {
                         {stats && stats?.activeTopics}
                     </CardTitle>
                     <CardAction>
-                        <div className="rounded-md p-4 bg-success/20">
-                            <IconChecklist className="text-success-foreground" size={24} />
+                        <div className="rounded-md p-2.5 bg-success/20">
+                            <ListChecks className="text-success-foreground size-5" />
                         </div>
                     </CardAction>
                 </CardHeader>
@@ -57,8 +57,8 @@ export default function SectionCards() {
                         {stats && stats?.recentInsightsGenerated}
                     </CardTitle>
                     <CardAction>
-                        <div className="rounded-md p-4 bg-warning/20">
-                            <IconBulb className="text-warning-foreground" size={24} />
+                        <div className="rounded-md p-2.5 bg-warning/20">
+                            <Lightbulb className="text-warning-foreground size-5" />
                         </div>
                     </CardAction>
                 </CardHeader>

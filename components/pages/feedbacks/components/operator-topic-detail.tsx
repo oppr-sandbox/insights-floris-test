@@ -29,8 +29,7 @@ import { ImageCarouselModal } from "@/components/attachments/attachment-preview"
 
 import { Topic } from "../data/schema";
 import { channels } from "../../topics/data/data";
-import { Clock, File, Send, Text } from "lucide-react";
-import { IconFileText } from "@tabler/icons-react";
+import { Clock, File, FileText, Send, Text } from "lucide-react";
 
 const PdfViewerModal = dynamic(() => import("@/components/attachments/pdf-viewer-modal"), { ssr: false });
 
@@ -161,7 +160,7 @@ export default function OperatorTopicDetail({ topic, open, onClose, onRespond }:
                                     {topicDetail?.description && (
                                         <div>
                                             <h3 className="flex items-center gap-1 text-sm font-semibold text-muted-foreground mb-2">
-                                                <IconFileText className="size-4" /><span>Description</span>
+                                                <FileText className="size-4" /><span>Description</span>
                                             </h3>
                                             <p className="text-body leading-relaxed whitespace-pre-wrap">
                                                 {topicDetail.description}

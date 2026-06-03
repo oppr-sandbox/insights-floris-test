@@ -4,7 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Calendar } from "@/components/ui/calendar";
 import { TabsContent } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { IconBulb } from "@tabler/icons-react";
+import { Lightbulb } from "lucide-react";
 import { useTopicDetail } from "../hooks/useTopicDetail";
 import { useCallback, useMemo, useState } from "react";
 import { debounce } from "@/utils/helpers/helpers";
@@ -107,7 +107,7 @@ export default function Scheduling() {
                 <Alert variant="warning">
                     <AlertTitle>
                         <div className="flex flex-row items-center space-x-1">
-                            <IconBulb className="size-6" />
+                            <Lightbulb className="size-6" />
                             <h5>Scheduling Tips:</h5>
                         </div>
                     </AlertTitle>

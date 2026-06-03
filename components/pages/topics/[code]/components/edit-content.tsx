@@ -1,7 +1,7 @@
 import { Editor } from "@/components/editor/blocks/app-editor/editor";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { TabsContent } from "@/components/ui/tabs";
-import { IconBulb } from "@tabler/icons-react";
+import { Lightbulb } from "lucide-react";
 import { SerializedEditorState } from "lexical";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTopicDetail } from "../hooks/useTopicDetail";
@@ -83,7 +83,7 @@ export default function Content() {
             <Alert variant="info" className="mt-4">
                 <AlertTitle>
                     <div className="flex flex-row items-center space-x-1">
-                        <IconBulb className="size-6" />
+                        <Lightbulb className="size-6" />
                         <h5>Content Tips:</h5>
                     </div>
                 </AlertTitle>

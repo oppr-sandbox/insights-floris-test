@@ -48,3 +48,9 @@ certificates
 # convex local backend (anonymous dev deployment) + build logs
 .convex/
 build.log
+
+# local-only: dev-seed content + upload scripts, design mockups, Claude skills
+# (not part of the Next build)
+/topics/
+/screenshots/
+/.agents/

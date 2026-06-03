@@ -21,7 +21,7 @@ export function SiteHeader() {
   }
   
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 sticky top-0 bg-background rounded-t z-50 border-b-muted border-b-[1px]">
+    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 sticky top-0 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 z-50 border-b border-border">
       <div className="flex flex-1 items-center gap-2 px-4">
         <SidebarTrigger className="-ml-1" />
         <Separator

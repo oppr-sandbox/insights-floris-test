@@ -1,7 +1,8 @@
 import { query, mutation, internalMutation, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireCompany } from "./lib/auth";
+import { requireCompany, canSeeTopic } from "./lib/auth";
 import { generateTopicCode } from "./lib/codes";
 import { topicStatus } from "./schema";
 
@@ -189,6 +190,7 @@ async function attachmentsFor(ctx: QueryCtx, topic: Doc<"topics">) {
       contentHash: "",
       createdAt: new Date(file._creationTime).toISOString(),
       createdBy,
+      parseStatus: file.parseStatus ?? "",
     });
   }
   return out;
@@ -306,10 +308,20 @@ export const topicFeedbacks = query({
       )
       .collect();
 
+    const disciplineNames = new Map<string, string | undefined>();
+    const disciplineFor = async (id?: Id<"disciplines">) => {
+      if (!id) return undefined;
+      if (!disciplineNames.has(id)) {
+        disciplineNames.set(id, (await ctx.db.get(id))?.name);
+      }
+      return disciplineNames.get(id);
+    };
+
     const out = [];
     for (const f of submitted) {
       const u = await ctx.db.get(f.userId);
       const displayName = userDisplayName(u);
+      const discipline = await disciplineFor(u?.disciplineId);
 
       let audioFile = undefined;
       if (f.audioFileId) {
@@ -354,6 +366,8 @@ export const topicFeedbacks = query({
           displayName,
           initials: initialsOf(displayName),
           userImage: u?.userImage ?? u?.image ?? "",
+          role: u?.role,
+          discipline,
         },
         dateSubmitted: iso(f.dateSubmitted) ?? "",
         sentiment: f.sentiment,
@@ -361,7 +375,7 @@ export const topicFeedbacks = query({
         textLangCode: f.textLangCode,
         transcribedText: f.transcribeText,
         transcribedTextLangCode: f.transcribeTextLangCode,
-        imageFiles,
+        imageFiles: imageFiles.length ? imageFiles : undefined,
         audioFile,
       });
     }
@@ -441,6 +455,105 @@ export const assigned = query({
           progress: stats.progress,
           myFeedbacksCount: mine.length,
           status: t.status,
+        };
+      }),
+    );
+  },
+});
+
+// Running topics the caller can see — the Dashboard's program view. Managers
+// see every in-flight topic in the company; members see only those they're in
+// the audience of. "Running" = published, active, or paused (still in-flight).
+export const running = query({
+  args: {},
+  handler: async (ctx) => {
+    const { user, companyId } = await requireCompany(ctx);
+    const all = await ctx.db
+      .query("topics")
+      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .collect();
+    const totalUsers = await companyUserCount(ctx, companyId);
+
+    const RUNNING = new Set(["ACTIVE", "PUBLISHED", "PAUSED"]);
+    const statusOrder: Record<string, number> = {
+      ACTIVE: 0,
+      PUBLISHED: 1,
+      PAUSED: 2,
+    };
+    const visible = all
+      .filter((t) => RUNNING.has(t.status) && canSeeTopic(user, t))
+      .sort(
+        (a, b) =>
+          (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9) ||
+          b._creationTime - a._creationTime,
+      );
+
+    return Promise.all(
+      visible.map(async (t) => {
+        const stats = await computeStats(ctx, t, totalUsers);
+        const creator = await ctx.db.get(t.userId);
+        return {
+          id: t._id,
+          topicCode: t.topicCode,
+          name: t.name,
+          description: t.description ?? "",
+          status: t.status,
+          endDate: iso(t.endDate) ?? "",
+          channels: t.channels ?? [],
+          progress: stats.progress,
+          respondentsCount: stats.respondentsCount,
+          totalRespondentsCount: stats.totalRespondentsCount,
+          totalFeedbacksCount: stats.totalFeedbacksCount,
+          initiatedBy: userDisplayName(creator),
+        };
+      }),
+    );
+  },
+});
+
+// Topics the caller created — "topics I'm running" on the Me page. Any status,
+// including drafts. Managers create topics; members will see an empty list.
+export const mine = query({
+  args: {},
+  handler: async (ctx) => {
+    const { user, companyId } = await requireCompany(ctx);
+    const all = await ctx.db
+      .query("topics")
+      .withIndex("by_company_creator", (q) =>
+        q.eq("companyId", companyId).eq("userId", user._id),
+      )
+      .collect();
+    const totalUsers = await companyUserCount(ctx, companyId);
+
+    const statusOrder: Record<string, number> = {
+      ACTIVE: 0,
+      PUBLISHED: 1,
+      PAUSED: 2,
+      DRAFT: 3,
+      COMPLETED: 4,
+      ARCHIVED: 5,
+    };
+    all.sort(
+      (a, b) =>
+        (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9) ||
+        b._creationTime - a._creationTime,
+    );
+
+    return Promise.all(
+      all.map(async (t) => {
+        const stats = await computeStats(ctx, t, totalUsers);
+        return {
+          id: t._id,
+          topicCode: t.topicCode,
+          name: t.name,
+          description: t.description ?? "",
+          status: t.status,
+          endDate: iso(t.endDate) ?? "",
+          channels: t.channels ?? [],
+          progress: stats.progress,
+          respondentsCount: stats.respondentsCount,
+          totalRespondentsCount: stats.totalRespondentsCount,
+          totalFeedbacksCount: stats.totalFeedbacksCount,
         };
       }),
     );
@@ -550,8 +663,10 @@ export const addAttachments = mutation({
         contentType: f.contentType,
         userId: user._id,
         companyId,
+        parseStatus: "PENDING",
       });
       fileIds.push(fid);
+      await ctx.scheduler.runAfter(0, internal.ingestion.parseFile, { fileId: fid });
     }
     await ctx.db.patch(args.id, {
       attachmentIds: [...(topic.attachmentIds ?? []), ...fileIds],

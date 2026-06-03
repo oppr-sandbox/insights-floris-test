@@ -1,10 +1,12 @@
 import { convexAuthNextjsToken } from "@convex-dev/auth/nextjs/server";
+import { ConvexHttpClient } from "convex/browser";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import {
   streamText,
   convertToModelMessages,
   type UIMessage,
-  type ModelMessage,
 } from "ai";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
@@ -27,48 +29,57 @@ export async function POST(req: Request) {
 
   const {
     messages,
-    prompt,
+    sessionId,
   }: {
     messages: UIMessage[];
-    prompt: string;
-    insightId: string;
+    sessionId: string;
+    lensKey: string;
   } = await req.json();
 
-  const fileRegex = /(https?:\/\/[^\s"']+\?(?:[^\s"']*)?)/gi;
-  const files = prompt.match(fileRegex) || [];
-  const imageUrls = files.filter((url) =>
-    /\.(png|jpe?g|gif|webp)(?:\?|$)/i.test(url),
-  );
+  const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+  convex.setAuth(token);
 
-  const newPrompt = `
-    ${prompt}
-
-    Follow these instructions:
-    0. Your name is 'IDA'
-    1. You are an expert on analyzing topics and feedbacks, giving recommendations, and providing insights regarding the topic.
-    2. If the question is out of context, politely inform the user and do not answer.
-    3. Use the Feedback Code instead of Feedback Id when identifying feedbacks.
-    4. When referring to a feedback code, format it like this: "[feedbackCode](${baseUrl}?c=feedbackId)".
-    5. You can also analyze images attached to a feedback.
-  `;
-
-  const model = google(process.env.GEMINI_MODEL ?? "gemini-2.5-flash");
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const userParts: any[] = [{ type: "text", text: newPrompt }];
-  for (const image of imageUrls) {
-    userParts.push({ type: "file", mediaType: "image/jpeg", data: image });
+  const payload = await convex.query(api.sessions.chatPayload, {
+    sessionId: sessionId as Id<"analysisSessions">,
+  });
+  if (!payload) {
+    return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
-  const modelMessages: ModelMessage[] = [
-    ...convertToModelMessages(messages),
-    { role: "user", content: userParts },
-  ];
+  // Use the active model selected in the Config command center, so chat
+  // honours the same override as insight generation (and dodges an
+  // overloaded default). Falls back to the env model if unreachable.
+  let modelId = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+  try {
+    modelId = await convex.query(api.ai.activeModelPublic, {});
+  } catch {
+    // keep env fallback
+  }
+  const model = google(modelId);
+
+  const system = [
+    payload.systemPrompt,
+    "",
+    "Formatting rules:",
+    "- Your name is 'IDA'.",
+    "- Use the Feedback Code instead of the Feedback Id when identifying feedbacks.",
+    `- When referring to a feedback code, format it like this: "[feedbackCode](${baseUrl}?c=feedbackId)".`,
+    "- You can also analyze images attached to a feedback.",
+    "",
+    "CONTEXT:",
+    payload.context,
+  ].join("\n");
+
+  // The client seeds a synthetic assistant "greeting" as the first bubble.
+  // Gemini requires the conversation to start with a user turn, so drop any
+  // leading non-user messages before handing them to the model.
+  const firstUser = messages.findIndex((m) => m.role === "user");
+  const modelMessages = firstUser >= 0 ? messages.slice(firstUser) : [];
 
   const result = streamText({
     model,
-    system: "You are IDA, an expert feedback analysis AI.",
-    messages: modelMessages,
+    system,
+    messages: convertToModelMessages(modelMessages),
   });
 
   return result.toUIMessageStreamResponse({ originalMessages: messages });

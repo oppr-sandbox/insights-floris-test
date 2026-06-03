@@ -8,7 +8,7 @@ import {
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireCompany } from "./lib/auth";
+import { requireCompany, canSeeTopic, isManager } from "./lib/auth";
 import { generateInsightCode } from "./lib/codes";
 
 const iso = (ms?: number | null) =>
@@ -27,6 +27,13 @@ function userDisplayName(u: Doc<"users"> | null): string {
 async function toDto(ctx: QueryCtx, insight: Doc<"insights">) {
   const topic = await ctx.db.get(insight.topicId);
   const creator = await ctx.db.get(insight.userId);
+
+  const respondents = new Set<string>();
+  for (const fid of insight.feedbackIds) {
+    const f = await ctx.db.get(fid);
+    if (f) respondents.add(f.userId);
+  }
+
   return {
     id: insight._id,
     insightCode: insight.insightCode,
@@ -34,6 +41,8 @@ async function toDto(ctx: QueryCtx, insight: Doc<"insights">) {
     topicCode: topic?.topicCode ?? "",
     topicName: topic?.name ?? "",
     feedbackCount: insight.feedbackIds.length,
+    respondentsCount: respondents.size,
+    label: insight.label ?? "",
     createdOn: new Date(insight._creationTime).toISOString(),
     createdBy: userDisplayName(creator),
     publishedDate: iso(insight.publishedDate),
@@ -41,13 +50,164 @@ async function toDto(ctx: QueryCtx, insight: Doc<"insights">) {
   };
 }
 
+// Keep only insights whose topic the caller may see (managers: all; members:
+// their audience). Topics are cached so we never load one twice.
+async function filterVisible(
+  ctx: QueryCtx,
+  user: Doc<"users">,
+  rows: Doc<"insights">[],
+) {
+  const seen = new Map<string, boolean>();
+  const visible: Doc<"insights">[] = [];
+  for (const ins of rows) {
+    let ok = seen.get(ins.topicId);
+    if (ok === undefined) {
+      const topic = await ctx.db.get(ins.topicId);
+      ok = !!topic && canSeeTopic(user, topic);
+      seen.set(ins.topicId, ok);
+    }
+    if (ok) visible.push(ins);
+  }
+  return visible;
+}
+
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const { companyId } = await requireCompany(ctx);
+    const { user, companyId } = await requireCompany(ctx);
     const rows = await ctx.db
       .query("insights")
       .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .order("desc")
+      .collect();
+    const visible = await filterVisible(ctx, user, rows);
+    return Promise.all(visible.map((r) => toDto(ctx, r)));
+  },
+});
+
+// The Insights hub "By topic" view: every topic the caller can see that has
+// feedback or generated work, each with its quick insights and deep dives in
+// one place. Also the source list for the "Talk" picker.
+export const hub = query({
+  args: {},
+  handler: async (ctx) => {
+    const { user, companyId } = await requireCompany(ctx);
+    const topics = await ctx.db
+      .query("topics")
+      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .collect();
+
+    const lensByKey = async (key: string) =>
+      ctx.db
+        .query("lenses")
+        .withIndex("by_company_key", (q) =>
+          q.eq("companyId", companyId).eq("key", key),
+        )
+        .unique();
+
+    const out = [];
+    for (const t of topics) {
+      if (!canSeeTopic(user, t)) continue;
+
+      const topicInsights = await ctx.db
+        .query("insights")
+        .withIndex("by_topic", (q) => q.eq("topicId", t._id))
+        .order("desc")
+        .collect();
+
+      const sessions = await ctx.db
+        .query("analysisSessions")
+        .withIndex("by_company_topic", (q) =>
+          q.eq("companyId", companyId).eq("primaryTopicId", t._id),
+        )
+        .order("desc")
+        .collect();
+      const guided = sessions.filter((s) => s.mode !== "ask");
+      const topicConversations = sessions.filter((s) => s.mode === "ask");
+
+      const submitted = await ctx.db
+        .query("feedback")
+        .withIndex("by_topic_status", (q) =>
+          q.eq("topicId", t._id).eq("status", "SUBMITTED"),
+        )
+        .collect();
+
+      if (topicInsights.length === 0 && guided.length === 0 && submitted.length === 0) {
+        continue;
+      }
+
+      const insightDtos = topicInsights.map((i) => ({
+        id: i._id,
+        insightCode: i.insightCode,
+        label: i.label ?? "",
+        status: i.status,
+        createdAt: new Date(i._creationTime).toISOString(),
+      }));
+
+      const deepDives = await Promise.all(
+        guided.map(async (s) => {
+          const lens = await lensByKey(s.lensKey);
+          const reports = await ctx.db
+            .query("analysisReports")
+            .withIndex("by_session", (q) => q.eq("sessionId", s._id))
+            .order("desc")
+            .collect();
+          const latest = reports[0];
+          return {
+            sessionId: s._id,
+            title: s.title ?? lens?.name ?? s.lensKey,
+            lensName: lens?.name ?? s.lensKey,
+            lensIcon: lens?.icon ?? "Sparkles",
+            reportId: latest?._id,
+            reportStatus: latest?.status ?? "DRAFT",
+            createdAt: iso(s.createdAt) ?? "",
+            updatedAt: iso(s.updatedAt),
+          };
+        }),
+      );
+
+      const conversations = topicConversations.map((s) => ({
+        sessionId: s._id,
+        title: s.title ?? "Conversation",
+        createdAt: iso(s.createdAt) ?? "",
+        updatedAt: iso(s.updatedAt),
+      }));
+
+      const times = [
+        ...insightDtos.map((i) => i.createdAt),
+        ...deepDives.map((d) => d.updatedAt ?? d.createdAt),
+        ...conversations.map((c) => c.updatedAt ?? c.createdAt),
+      ].filter(Boolean);
+      const lastActivityAt = times.sort().at(-1) ?? new Date(t._creationTime).toISOString();
+
+      out.push({
+        topicId: t._id,
+        topicCode: t.topicCode,
+        topicName: t.name,
+        status: t.status,
+        feedbackCount: submitted.length,
+        insights: insightDtos,
+        deepDives,
+        conversations,
+        lastActivityAt,
+      });
+    }
+
+    out.sort((a, b) => (a.lastActivityAt < b.lastActivityAt ? 1 : -1));
+    return out;
+  },
+});
+
+export const byTopic = query({
+  args: { topicId: v.id("topics") },
+  handler: async (ctx, { topicId }) => {
+    const { user, companyId } = await requireCompany(ctx);
+    const topic = await ctx.db.get(topicId);
+    if (!topic || topic.companyId !== companyId) return [];
+    if (!canSeeTopic(user, topic)) return [];
+    const rows = await ctx.db
+      .query("insights")
+      .withIndex("by_topic", (q) => q.eq("topicId", topicId))
       .order("desc")
       .collect();
     return Promise.all(rows.map((r) => toDto(ctx, r)));
@@ -57,7 +217,7 @@ export const list = query({
 export const published = query({
   args: {},
   handler: async (ctx) => {
-    const { companyId } = await requireCompany(ctx);
+    const { user, companyId } = await requireCompany(ctx);
     const rows = await ctx.db
       .query("insights")
       .withIndex("by_company_status", (q) =>
@@ -65,14 +225,15 @@ export const published = query({
       )
       .order("desc")
       .collect();
-    return Promise.all(rows.map((r) => toDto(ctx, r)));
+    const visible = await filterVisible(ctx, user, rows);
+    return Promise.all(visible.map((r) => toDto(ctx, r)));
   },
 });
 
 export const getByCode = query({
   args: { code: v.string() },
   handler: async (ctx, args) => {
-    const { companyId } = await requireCompany(ctx);
+    const { user, companyId } = await requireCompany(ctx);
     const insight = await ctx.db
       .query("insights")
       .withIndex("by_code", (q) => q.eq("insightCode", args.code))
@@ -80,6 +241,7 @@ export const getByCode = query({
     if (!insight || insight.companyId !== companyId) return null;
 
     const topic = await ctx.db.get(insight.topicId);
+    if (topic && !canSeeTopic(user, topic)) return null;
     const creator = await ctx.db.get(insight.userId);
 
     const submitted = topic
@@ -101,6 +263,7 @@ export const getByCode = query({
       topicContent: topic?.content ?? topic?.description ?? "",
       topicChannels: topic?.channels ?? [],
       status: insight.status,
+      label: insight.label ?? "",
       feedbackCount: insight.feedbackIds.length,
       feedbacksCount: submitted.length,
       respondentsCount,
@@ -119,9 +282,20 @@ export const getByCode = query({
 export const feedbacks = query({
   args: { insightId: v.id("insights") },
   handler: async (ctx, args) => {
-    const { companyId } = await requireCompany(ctx);
+    const { user, companyId } = await requireCompany(ctx);
     const insight = await ctx.db.get(args.insightId);
     if (!insight || insight.companyId !== companyId) return [];
+    const insightTopic = await ctx.db.get(insight.topicId);
+    if (insightTopic && !canSeeTopic(user, insightTopic)) return [];
+
+    const disciplineNames = new Map<string, string | undefined>();
+    const disciplineFor = async (id?: Id<"disciplines">) => {
+      if (!id) return undefined;
+      if (!disciplineNames.has(id)) {
+        disciplineNames.set(id, (await ctx.db.get(id))?.name);
+      }
+      return disciplineNames.get(id);
+    };
 
     const out = [];
     for (const fid of insight.feedbackIds) {
@@ -129,6 +303,7 @@ export const feedbacks = query({
       if (!f) continue;
       const u = await ctx.db.get(f.userId);
       const displayName = userDisplayName(u);
+      const discipline = await disciplineFor(u?.disciplineId);
 
       let audioFile = undefined;
       if (f.audioFileId) {
@@ -178,6 +353,8 @@ export const feedbacks = query({
             .map((p) => p[0]?.toUpperCase() ?? "")
             .join(""),
           userImage: u?.userImage ?? u?.image ?? "",
+          role: u?.role,
+          discipline,
         },
         dateSubmitted: iso(f.dateSubmitted) ?? "",
         sentiment: f.sentiment,
@@ -185,7 +362,7 @@ export const feedbacks = query({
         textLangCode: f.textLangCode,
         transcribedText: f.transcribeText,
         transcribedTextLangCode: f.transcribeTextLangCode,
-        imageFiles,
+        imageFiles: imageFiles.length ? imageFiles : undefined,
         audioFile,
       });
     }
@@ -197,6 +374,7 @@ export const generate = mutation({
   args: { topicId: v.id("topics") },
   handler: async (ctx, args) => {
     const { user, companyId } = await requireCompany(ctx);
+    if (!isManager(user)) throw new Error("Not authorized");
     const topic = await ctx.db.get(args.topicId);
     if (!topic || topic.companyId !== companyId) {
       throw new Error("Topic not found");
@@ -234,8 +412,46 @@ export const generate = mutation({
   },
 });
 
-export const publish = mutation({
+export const regenerate = mutation({
   args: { id: v.id("insights") },
+  handler: async (ctx, args) => {
+    const { user, companyId } = await requireCompany(ctx);
+    if (!isManager(user)) throw new Error("Not authorized");
+    const insight = await ctx.db.get(args.id);
+    if (!insight || insight.companyId !== companyId) {
+      throw new Error("Insight not found");
+    }
+    if (insight.status !== "FAILED" && insight.status !== "GENERATING") {
+      throw new Error("Only failed or stuck insights can be regenerated");
+    }
+
+    // Refresh the feedback set from the topic's current submitted feedback.
+    const submitted = await ctx.db
+      .query("feedback")
+      .withIndex("by_topic_status", (q) =>
+        q.eq("topicId", insight.topicId).eq("status", "SUBMITTED"),
+      )
+      .collect();
+    if (submitted.length === 0) {
+      throw new Error("This topic has no submitted feedback to analyze yet.");
+    }
+
+    await ctx.db.patch(args.id, {
+      status: "GENERATING",
+      error: undefined,
+      calculatedAt: Date.now(),
+      feedbackIds: submitted.map((f) => f._id),
+    });
+
+    await ctx.scheduler.runAfter(0, internal.ai.generateInsight, {
+      insightId: args.id,
+    });
+    return { ok: true };
+  },
+});
+
+export const publish = mutation({
+  args: { id: v.id("insights"), label: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const { companyId } = await requireCompany(ctx);
     const insight = await ctx.db.get(args.id);
@@ -248,7 +464,22 @@ export const publish = mutation({
     await ctx.db.patch(args.id, {
       status: "PUBLISHED",
       publishedDate: Date.now(),
+      label: args.label?.trim() || undefined,
     });
+    return { ok: true };
+  },
+});
+
+// Adjust the free-text tag/note on an insight at any time.
+export const updateLabel = mutation({
+  args: { id: v.id("insights"), label: v.string() },
+  handler: async (ctx, args) => {
+    const { companyId } = await requireCompany(ctx);
+    const insight = await ctx.db.get(args.id);
+    if (!insight || insight.companyId !== companyId) {
+      throw new Error("Insight not found");
+    }
+    await ctx.db.patch(args.id, { label: args.label.trim() || undefined });
     return { ok: true };
   },
 });
@@ -261,8 +492,8 @@ export const remove = mutation({
     if (!insight || insight.companyId !== companyId) {
       throw new Error("Insight not found");
     }
-    if (insight.status !== "DRAFT") {
-      throw new Error("Only draft insights can be deleted");
+    if (insight.status !== "DRAFT" && insight.status !== "FAILED") {
+      throw new Error("Only draft or failed insights can be deleted");
     }
     await ctx.db.delete(args.id);
     return { ok: true };
@@ -281,6 +512,9 @@ export const getChat = query({
     }
 
     const topic = await ctx.db.get(insight.topicId);
+    if (topic && !canSeeTopic(user, topic)) {
+      return { prompt: "", messages: [] };
+    }
     const lines: string[] = [
       "You are IDA, an expert analyst of employee feedback for this topic.",
       "",
@@ -370,6 +604,15 @@ export const getContext = internalQuery({
       });
     }
 
+    // Knowledge bucket: parsed contents of the topic's uploaded documents.
+    const knowledgeParts: string[] = [];
+    for (const fid of topic?.attachmentIds ?? []) {
+      const file = await ctx.db.get(fid);
+      if (file?.parseStatus === "PARSED" && file.parsedText) {
+        knowledgeParts.push(`--- Document: ${file.fileName} ---\n${file.parsedText}\n--- end ${file.fileName} ---`);
+      }
+    }
+
     return {
       topic: {
         name: topic?.name ?? "",
@@ -378,6 +621,7 @@ export const getContext = internalQuery({
         startDate: iso(topic?.startDate) ?? "",
         endDate: iso(topic?.endDate) ?? "",
       },
+      knowledge: knowledgeParts.join("\n\n"),
       feedbacks,
     };
   },

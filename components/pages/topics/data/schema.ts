@@ -106,6 +106,8 @@ export interface FeedbackUser {
     displayName: string;
     initials: string;
     userImage?: string;
+    role?: string;
+    discipline?: string;
 }
 
 export enum TopicStatus {

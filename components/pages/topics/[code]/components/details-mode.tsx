@@ -5,6 +5,7 @@ import Statistics from "./details-statistics";
 import Contents from "./details-content";
 import { usePathname, useSearchParams } from "next/navigation";
 import Feedbacks from "./details-feedbacks";
+import Analysis from "./details-analysis";
 import { setQueryParam } from "@/utils/helpers/helpers";
 
 export function DetailsMode({ className }: { className?: string | undefined }) {
@@ -15,7 +16,7 @@ export function DetailsMode({ className }: { className?: string | undefined }) {
     return (
         <Tabs value={currentTab} onValueChange={(value) => { setQueryParam(pathname, 'tab', value) }} >
             <div className="sticky top-28 bg-background z-50 py-2 px-4">
-                <TabsList className=" w-full grid grid-cols-1 md:grid-cols-3 h-auto p-1">
+                <TabsList className=" w-full grid grid-cols-2 md:grid-cols-4 h-auto p-1">
                     <TabsTrigger value="statistics">
                         Statistics
                     </TabsTrigger>
@@ -25,16 +26,16 @@ export function DetailsMode({ className }: { className?: string | undefined }) {
                     <TabsTrigger value="feedbacks">
                         Feedbacks
                     </TabsTrigger>
-                    {/* <TabsTrigger value="export">
-                        Export
-                    </TabsTrigger> */}
+                    <TabsTrigger value="analysis">
+                        Analysis
+                    </TabsTrigger>
                 </TabsList>
             </div>
             <div className="px-4">
                 <Statistics />
                 <Contents />
                 <Feedbacks />
-                {/* <Export /> */}
+                <Analysis />
             </div>
         </Tabs>
     )
